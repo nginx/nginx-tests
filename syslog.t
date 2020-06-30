@@ -220,7 +220,7 @@ http_get('/if/work?logme=yes');
 
 get_syslog('/a');
 
-like($t->read_file('s_if.log'), qr/good:404.*work:404/s, 'syslog if success');
+like($t->read_file('s_if.log'), qr/(good:404.*work:404)|(work:404.*good:404)/s, 'syslog if success');
 unlike($t->read_file('s_if.log'), qr/(if:|empty:|zero:)404/, 'syslog if fail');
 
 like(get_syslog('/nohostname'),
