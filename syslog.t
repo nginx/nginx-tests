@@ -321,7 +321,7 @@ sub parse_syslog_message {
 	ok($sec < 60, "$desc valid seconds");
 
 	ok(defined($host), "$desc has host");
-	chomp(my $hostname = lc `hostname`);
+	chomp(my $hostname = lc `uname -n`);
 	is($host , $hostname, "$desc valid host");
 
 	ok(defined($tag), "$desc has tag");

@@ -80,7 +80,7 @@ $t->try_run('no inet6 support')->plan(8);
 
 ###############################################################################
 
-chomp(my $hostname = lc `hostname`);
+chomp(my $hostname = lc `uname -n`);
 like(stream('127.0.0.1:' . port(8080))->read(),
 	qr/^\d+:[\d.]+:$hostname:\d+:0$/, 'vars');
 
