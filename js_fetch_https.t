@@ -92,7 +92,7 @@ $t->write_file('test.js', <<EOF);
         var url = `https://\${r.args.domain}:$p1/loc`;
         var opt = {};
         if (r.args.verify != null && r.args.verify == "false") {
-            opt.verify = 0;
+            opt.verify = false;
         }
         if (r.args.trusted_certificate) {
             opt.trusted_certificate = r.args.trusted_certificate;
@@ -237,12 +237,9 @@ sub reply_handler {
 
 	my $name = join('.', @name);
 
-	if ($name eq 'aaa' && $type == A) {
+	if ($type == A) {
 		push @rdata, rd_addr($ttl, '127.0.0.1');
 
-	} elsif ($name eq 'many' && $type == A) {
-		push @rdata, rd_addr($ttl, '127.0.0.2');
-		push @rdata, rd_addr($ttl, '127.0.0.1');
 	}
 
 	$len = @name;
