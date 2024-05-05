@@ -389,6 +389,8 @@ local $TODO = 'no TLSv1.3 sessions, old IO::Socket::SSL'
 	if $IO::Socket::SSL::VERSION < 2.061 && $tls13;
 local $TODO = 'no TLSv1.3 sessions in LibreSSL'
 	if $t->has_module('LibreSSL') && $tls13;
+local $TODO = 'no TLSv1.3 sessions in Net::SSLeay (LibreSSL)'
+	if Net::SSLeay::constant("LIBRESSL_VERSION_NUMBER") && $tls13;
 
 like(get('ec-end', ses => $s),
 	qr/SUCCESS:r/, 'session reused');
@@ -447,6 +449,8 @@ local $TODO = 'no TLSv1.3 sessions, old IO::Socket::SSL'
 	if $IO::Socket::SSL::VERSION < 2.061 && $tls13;
 local $TODO = 'no TLSv1.3 sessions in LibreSSL'
 	if $t->has_module('LibreSSL') && $tls13;
+local $TODO = 'no TLSv1.3 sessions in Net::SSLeay (LibreSSL)'
+	if Net::SSLeay::constant("LIBRESSL_VERSION_NUMBER") && $tls13;
 
 like($log, qr/localhost:500:FAILED:certificate revoked:r/,
 	'log - session reused - revoked');
