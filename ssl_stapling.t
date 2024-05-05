@@ -262,6 +262,8 @@ ok(!staple(8443, 'RSA'), 'staple revoked');
 TODO: {
 local $TODO = 'broken TLSv1.3 sigalgs in LibreSSL'
 	if $t->has_module('LibreSSL') && test_tls13();
+local $TODO = 'no TLSv1.3 sigalgs in Net::SSLeay (LibreSSL)'
+	if Net::SSLeay::constant("LIBRESSL_VERSION_NUMBER") && test_tls13();
 
 ok(staple(8443, 'ECDSA'), 'staple success');
 
@@ -272,6 +274,8 @@ ok(!staple(8444, 'RSA'), 'responder revoked');
 TODO: {
 local $TODO = 'broken TLSv1.3 sigalgs in LibreSSL'
 	if $t->has_module('LibreSSL') && test_tls13();
+local $TODO = 'no TLSv1.3 sigalgs in Net::SSLeay (LibreSSL)'
+	if Net::SSLeay::constant("LIBRESSL_VERSION_NUMBER") && test_tls13();
 
 ok(staple(8444, 'ECDSA'), 'responder success');
 
@@ -288,8 +292,10 @@ ok(!staple(8449, 'ECDSA'), 'ocsp error');
 
 TODO: {
 local $TODO = 'broken TLSv1.3 sigalgs in LibreSSL'
-	if $t->has_module('LibreSSL') && test_tls13()
-	and not $t->has_feature('libressl:4.0.0');
+	if $t->has_module('LibreSSL')
+	&& !$t->has_feature('libressl:4.0.0')
+	&& !Net::SSLeay::constant("LIBRESSL_VERSION_NUMBER")
+	&& test_tls13();
 
 like(`grep -F '[crit]' ${\($t->testdir())}/error.log`, qr/^$/s, 'no crit');
 
