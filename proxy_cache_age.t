@@ -123,11 +123,11 @@ like(get('/ignore/noage'), qr/HIT/, 'noage ignore');
 
 sleep(2);
 
-like(http_get('/fresh'), qr/(?<!Age:.{,200})Age: 9[1-5](?!.*Age:)/ms,
+like(http_get('/fresh'), qr/^(?>.*?Age:) 9[1-5](?!.*Age:)/s,
 	'cached age updated');
-like(http_get('/stale'), qr/(?<!Age:.{,200})Age: 110(?!.*Age:)/ms,
+like(http_get('/stale'), qr/^(?>.*?Age:) 110(?!.*Age:)/s,
 	'not cached age preserved');
-like(http_get('/noage'), qr/(?<!Age:.{,200})Age: [1-5](?!.*Age:)/ms,
+like(http_get('/noage'), qr/^(?>.*?Age:) [1-5](?!.*Age:)/s,
 	'noage age added');
 
 like(http_get('/revalidate'), qr/REVALIDATED(?!.*Age:)/ms,
