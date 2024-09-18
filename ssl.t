@@ -218,6 +218,8 @@ local $TODO = 'no TLSv1.3 sessions in LibreSSL'
 	if $t->has_module('LibreSSL') && test_tls13();
 local $TODO = 'no TLSv1.3 sessions ids in BoringSSL'
 	if $t->has_module('BoringSSL') && test_tls13();
+local $TODO = 'no TLSv1.3 sessions ids in AWS-LC'
+	if $t->has_module('AWS-LC') && test_tls13();
 
 like(get('/id', 8085, $ctx), qr/^body \w{64}$/m, 'session id reused');
 
@@ -229,6 +231,7 @@ like(get('/cipher', 8085), qr/^body [\w-]+$/m, 'cipher');
 
 SKIP: {
 skip 'BoringSSL', 1 if $t->has_module('BoringSSL');
+skip 'AWS-LC', 1 if $t->has_module('AWS-LC');
 
 like(get('/ciphers', 8085), qr/^body [:\w-]+$/m, 'ciphers');
 

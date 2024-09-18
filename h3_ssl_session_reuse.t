@@ -139,6 +139,8 @@ is(test_reuse(8944), 1, 'tickets and cache reused');
 
 local $TODO = 'no TLSv1.3 session cache in BoringSSL'
 	if $t->has_module('BoringSSL');
+local $TODO = 'no TLSv1.3 session cache in AWS-LC'
+	if $t->has_module('AWS-LC');
 
 is(test_reuse(8945), 1, 'cache shared reused');
 is(test_reuse(8946), 1, 'cache builtin reused');

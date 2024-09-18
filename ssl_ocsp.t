@@ -363,6 +363,8 @@ local $TODO = 'no TLSv1.3 sessions, old IO::Socket::SSL'
 	if $IO::Socket::SSL::VERSION < 2.061 && test_tls13();
 local $TODO = 'no TLSv1.3 sessions in LibreSSL'
 	if $t->has_module('LibreSSL') && test_tls13();
+local $TODO = 'no TLSv1.3 session cache in AWS-LC'
+	if $t->has_module('AWS-LC') && test_tls13();
 
 like(get('ec-end', ses => $s),
 	qr/200 OK.*SUCCESS:r/s, 'session reused');
@@ -395,6 +397,8 @@ local $TODO = 'no TLSv1.3 sessions, old IO::Socket::SSL'
 	if $IO::Socket::SSL::VERSION < 2.061 && test_tls13();
 local $TODO = 'no TLSv1.3 sessions in LibreSSL'
 	if $t->has_module('LibreSSL') && test_tls13();
+local $TODO = 'no TLSv1.3 session cache in AWS-LC'
+	if $t->has_module('AWS-LC') && test_tls13();
 
 like(get('ec-end', ses => $s),
 	qr/400 Bad.*FAILED:certificate revoked:r/s, 'session reused - revoked');
