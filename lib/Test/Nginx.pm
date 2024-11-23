@@ -92,7 +92,9 @@ sub DESTROY {
 	if ($ENV{TEST_NGINX_CATLOG}) {
 		system("cat $self->{_testdir}/error.log");
 	}
-	if (not $ENV{TEST_NGINX_LEAVE}) {
+	if ($ENV{TEST_NGINX_LEAVE}) {
+		Test::More::diag("Leaving test directory " . $self->{_testdir} . CRLF);
+	} else {
 		eval { rmtree($self->{_testdir}); };
 	}
 }
