@@ -12,7 +12,7 @@ use strict;
 use Test::More;
 
 use Digest::MD5 qw/ md5 md5_hex /;
-use MIME::Base64 qw/ encode_base64 /;
+use MIME::Base64 qw/ encode_base64url /;
 
 BEGIN { use FindBin; chdir($FindBin::Bin); }
 
@@ -178,14 +178,5 @@ like(http_get('/p/test.html'), qr/^HTTP.*403/, 'request old style no hash');
 like(http_get('/inheritance/test'), qr/PASSED/, 'inheritance');
 
 like(http_get('/stub'), qr/xx/, 'secure_link not found');
-
-###############################################################################
-
-sub encode_base64url {
-	my $e = encode_base64(shift, "");
-	$e =~ s/=+\z//;
-	$e =~ tr[+/][-_];
-	return $e;
-}
 
 ###############################################################################
