@@ -52,4 +52,9 @@ TEST_NGINX_GLOBALS_STREAM
 
     Sets additional directives in stream context.
 
+TEST_NGINX_TIMEOUT_MULT
+
+    Applies a multiplier to timeouts used for testing. Useful when running on
+    slow systems, or with sanitizers.
+
 Happy testing!

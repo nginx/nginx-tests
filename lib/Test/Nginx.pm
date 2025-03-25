@@ -477,6 +477,18 @@ sub dump_config() {
 	return qx/$command 2>&1/;
 }
 
+
+sub timeout($) {
+	my ($timeout) = @_;
+	my $mult;
+	if (exists($ENV{TEST_NGINX_TIMEOUT_MULT})) {
+		$mult = $ENV{TEST_NGINX_TIMEOUT_MULT} + 0;
+	} else {
+		$mult = 1;
+	}
+	return $mult * $timeout;
+}
+
 sub waitforfile($;$) {
 	my ($self, $file, $pid) = @_;
 	my $exited;
@@ -484,7 +496,7 @@ sub waitforfile($;$) {
 	# wait for file to appear
 	# or specified process to exit
 
-	for (1 .. 50) {
+	for (1 .. timeout(50)) {
 		return 1 if -e $file;
 		return 0 if $exited;
 		$exited = waitpid($pid, WNOHANG) != 0 if $pid;
@@ -499,7 +511,7 @@ sub waitforsocket($) {
 
 	# wait for socket to accept connections
 
-	for (1 .. 50) {
+	for (1 .. timeout(50)) {
 		my $s = IO::Socket::INET->new(
 			Proto => 'tcp',
 			PeerAddr => $peer
