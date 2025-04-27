@@ -1198,12 +1198,12 @@ sub http_daemon {
 
 		if ($uri eq '/cookie') {
 
-			my ($cookie, $cookie2) = $headers =~ /Cookie: ([\t -~]+)\r?/ig;
+			my ($cookie, $cookie2) = $headers =~ /^Cookie: ([\t -~]+)\r\n/igm;
 			$cookie2 = '' unless defined $cookie2;
 
 			my ($cookie_a, $cookie_c) = ('', '');
-			$cookie_a = $1 if $headers =~ /X-Cookie-a: ([\t -~]+)\r?/i;
-			$cookie_c = $1 if $headers =~ /X-Cookie-c: ([\t -~]+)\r?/i;
+			$cookie_a = $1 if $headers =~ /^X-Cookie-a: ([\t -~]+)\r\n/im;
+			$cookie_c = $1 if $headers =~ /^X-Cookie-c: ([\t -~]+)\r\n/im;
 
 			print $client <<EOF;
 HTTP/1.1 200 OK

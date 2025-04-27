@@ -266,7 +266,7 @@ like($r, qr/^6789abcdef$/m, 'last bytes - correct content');
 
 # respect not modified and range filters
 
-my ($etag) = http_get('/t') =~ /ETag: (.*)/;
+my ($etag) = http_get('/t') =~ /^ETag: ([ -~]*)\r\n/im;
 
 like(get('/cache/t?inm', "If-None-Match: $etag"), qr/ 304 /, 'inm');
 like(get('/cache/t?inm', "If-None-Match: bad"), qr/ 200 /, 'inm bad');
@@ -280,7 +280,7 @@ like($r, qr/^34$/m, 'if-range - correct content');
 
 # respect Last-Modified from non-cacheable response with If-Range
 
-my ($lm) = http_get('/t') =~ /Last-Modified: (.*)/;
+my ($lm) = http_get('/t') =~ /^Last-Modified: ([ -~]*)\r\n/im;
 $r = get('/proxy/t', "Range: bytes=3-4\nIf-Range: $lm");
 like($r, qr/ 206 /, 'if-range last-modified proxy - 206 partial reply');
 like($r, qr/^34$/m, 'if-range last-modified proxy - correct content');

@@ -272,13 +272,13 @@ sub expires2timegm {
 
 sub uid_set {
 	my ($r) = @_;
-	my ($uid) = $r =~ /X-Set: uid=(.*)\n/m;
+	my ($uid) = $r =~ /^[Xx]-[Ss][Ee][Tt]: uid=([\t -~]*)\r\n/m;
 	return $uid;
 }
 
 sub uid_got {
 	my ($r) = @_;
-	my ($uid) = $r =~ /X-Got: uid=(.*)\n/m;
+	my ($uid) = $r =~ /[Xx]-[Gg][Oo][Tt]: uid=([\t -~]*)\r\n/m;
 	return $uid;
 }
 

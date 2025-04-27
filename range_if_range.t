@@ -69,7 +69,7 @@ $t1 = http_get_range('/t1.html', "Range: bytes=0-9\nIf-Range: wrong");
 like($t1, qr/200 OK/, 'if-range wrong');
 like($t1, qr/Last-Modified: /, 'if-range wrong - last modified');
 
-$t1 =~ m/Last-Modified: (.*)/m;
+$t1 =~ m/^Last-Modified: ([ -~]*)\r\n/im;
 my $last = $1;
 
 $t1 = http_get_range('/t1.html', "Range: bytes=0-9\nIf-Range: $last");

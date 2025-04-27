@@ -343,13 +343,13 @@ sub process_name {
 	$uri = $1 if $headers =~ /^\S+\s+([^ ]+)\s+HTTP/i;
 	return 1 if $uri eq '';
 
-	$headers =~ /X-A: (.*)$/m;
+	$headers =~ /^X-A: ([\t -~]*)\r?$/im;
 	map { push @{$h{A}}, $_ } split(/ /, $1);
-	$headers =~ /X-AAAA: (.*)$/m;
+	$headers =~ /^X-AAAA: ([\t -~]*)\r$/im;
 	map { push @{$h{AAAA}}, $_ } split(/ /, $1);
-	$headers =~ /X-CNAME: (.*)$/m;
+	$headers =~ /^X-CNAME: ([\t -~]*)\r$/im;
 	$h{CNAME} = $1;
-	$headers =~ /X-ERROR: (.*)$/m;
+	$headers =~ /^X-ERROR: ([\t -~]*)\r$/im;
 	$h{ERROR} = $1;
 
 	Test::Nginx::log_core('||', "$port: response, 200");

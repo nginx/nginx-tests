@@ -307,18 +307,20 @@ sub process_name {
 	my $uri = '';
 	my %h;
 
+	die "Bad count\n" unless $cnt =~ /\A[ -~]+\z/;
+
 	while (<$client>) {
 		$headers .= $_;
 		last if (/^\x0d?\x0a?$/);
 	}
 	return 1 if $headers eq '';
 
-	$uri = $1 if $headers =~ /^\S+\s+([^ ]+)\s+HTTP/i;
-	return 1 if $uri eq '';
+	$uri = $1 if $headers =~ /\A[A-Z]+ ([!-~\x80-\xFF]+) HTTP\/1\.[01]\r\n/i;
+	die "Bad request line\n" if $uri eq '';
 
-	$headers =~ /X-A: (.*)$/m;
+	$headers =~ /^X-A: ([ -~]*)\r?$/m;
 	map { push @{$h{A}}, $_ } split(/ /, $1);
-	$headers =~ /X-ERROR: (.*)$/m;
+	$headers =~ /^X-ERROR: ([ -~]*)\r?$/m;
 	$h{ERROR} = $1;
 
 	Test::Nginx::log_core('||', "$port: response, 200");
