@@ -426,7 +426,7 @@ unlike($s->{headers}, qr/aaaaa/, 'well known chars - huffman encoding');
 # response header field with huffman encoding - complete table mod \0, CR, LF
 # first saturate with short-encoded characters (NB: implementation detail)
 
-my $field = pack "C*", ((map { 97 } (1 .. 862)), 1 .. 9, 11, 12, 14 .. 255);
+my $field = pack "C*", ((map { 97 } (1 .. 862)), 9, 32 .. 126, 128 .. 255);
 
 $s = Test::Nginx::HTTP2->new();
 $sid = $s->new_stream({ headers => [
@@ -1198,12 +1198,12 @@ sub http_daemon {
 
 		if ($uri eq '/cookie') {
 
-			my ($cookie, $cookie2) = $headers =~ /Cookie: (.+)/ig;
+			my ($cookie, $cookie2) = $headers =~ /Cookie: ([\t -~]+)\r?/ig;
 			$cookie2 = '' unless defined $cookie2;
 
 			my ($cookie_a, $cookie_c) = ('', '');
-			$cookie_a = $1 if $headers =~ /X-Cookie-a: (.+)/i;
-			$cookie_c = $1 if $headers =~ /X-Cookie-c: (.+)/i;
+			$cookie_a = $1 if $headers =~ /X-Cookie-a: ([\t -~]+)\r?/i;
+			$cookie_c = $1 if $headers =~ /X-Cookie-c: ([\t -~]+)\r?/i;
 
 			print $client <<EOF;
 HTTP/1.1 200 OK

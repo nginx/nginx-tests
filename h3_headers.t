@@ -390,7 +390,7 @@ unlike($s->{headers}, qr/aaaaa/, 'well known chars - huffman encoding');
 # response header field with huffman encoding - complete table mod \0, CR, LF
 # first saturate with short-encoded characters (NB: implementation detail)
 
-my $field = pack "C*", ((map { 97 } (1 .. 862)), 1 .. 9, 11, 12, 14 .. 255);
+my $field = pack "C*", ((map { 97 } (1 .. 862)), 9, 32 .. 126, 128 .. 255);
 
 $s = Test::Nginx::HTTP3->new();
 $sid = $s->new_stream({ headers => [
