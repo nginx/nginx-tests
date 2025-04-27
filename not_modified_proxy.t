@@ -15,6 +15,7 @@ use warnings;
 use strict;
 
 use Test::More;
+use Data::Dumper;
 
 BEGIN { use FindBin; chdir($FindBin::Bin); }
 
@@ -111,31 +112,58 @@ like(http_get_inm('/cache/etag', $etag), qr/ 304 /, 'inm etag from cache');
 
 sub http_get_ims {
 	my ($url, $ims) = @_;
+        $url =~ /\A[!-~]+\z/ or die "Bad URL \Q$url\E\n";
+        if ($ims =~ /\A[ \t]/) {
+            die "Leading whitespace in \Q$ims\E\n";
+        }
+        if ($ims =~ /[ \t]\r?\z/) {
+            die "Trailing whitespace in \Q$ims\E\n";
+        }
+        unless ($ims =~ /\A([\t -~]+)\r?\z/) {
+            $ims = Dumper($ims);
+            die "Bad If-Modified-Since $ims\n";
+        }
 	return http(<<EOF);
-GET $url HTTP/1.0
-Host: localhost
-If-Modified-Since: $ims
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+If-Modified-Since: $1\r
+\r
 EOF
 }
 
 sub http_get_iums {
 	my ($url, $ims) = @_;
+        $url =~ /\A[!-~]+\z/ or die "Bad URL \Q$url\E\n";
+        if ($ims =~ /\A[ \t]/) {
+            die "Leading whitespace in \Q$ims\E\n";
+        }
+        if ($ims =~ /[ \t]\r?\z/) {
+            die "Leading whitespace in \Q$ims\E\n";
+        }
+        $ims =~ /\A([\t\x20-\x7E]+)\r?\z/ or die "Bad If-Unmodified-Since \Q$ims\E";
 	return http(<<EOF);
-GET $url HTTP/1.0
-Host: localhost
-If-Unmodified-Since: $ims
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+If-Unmodified-Since: $1\r
+\r
 EOF
 }
 
 sub http_get_inm {
 	my ($url, $inm) = @_;
+        $url =~ /\A[!-~]+\z/ or die "Bad URL \Q$url\E\n";
+        if ($inm =~ /\A[ \t]/) {
+            die "Leading whitespace in \Q$inm\E\n";
+        }
+        if ($inm =~ /[ \t]\r?\z/) {
+            die "Leading whitespace in \Q$inm\E\n";
+        }
+        $inm =~ /\A([\t\x20-\x7E]+)\r?\z/ or die "Bad If-None-Match \Q$inm\E\n";
 	return http(<<EOF);
-GET $url HTTP/1.0
-Host: localhost
-If-None-Match: $inm
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+If-None-Match: $1\r
+\r
 EOF
 }
 

@@ -134,10 +134,10 @@ like($r, qr/X-Conn: 1:0.*X-Conn: 2:[^0]/s, 'keepalive time limit variables');
 # cancel keepalive on EOF while discarding body
 
 my $s = http(<<EOF, start => 1);
-POST /r HTTP/1.1
-Host: localhost
-Content-Length: 10
-
+POST /r HTTP/1.1\r
+Host: localhost\r
+Content-Length: 10\r
+\r
 EOF
 
 read_keepalive($s);
@@ -175,10 +175,10 @@ sub http_keepalive {
 		my $sleep = ($i == 1 ? $opts{sleep} : 0);
 
 		http(<<EOF, socket => $s, start => 1, sleep => $sleep);
-$opts{method} $url HTTP/1.1
-Host: localhost
-User-Agent: $opts{ua}
-
+$opts{method} $url HTTP/1.1\r
+Host: localhost\r
+User-Agent: $opts{ua}\r
+\r
 EOF
 
 		$total .= read_keepalive($s);

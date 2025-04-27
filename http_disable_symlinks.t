@@ -279,9 +279,9 @@ like(http_get('/from/exact/link'), qr!200 OK!, '"from=" exact match');
 sub http_get_host {
 	my ($host, $url) = @_;
 	return http(<<EOF);
-GET $url HTTP/1.0
-Host: $host
-
+GET $url HTTP/1.0\r
+Host: $host\r
+\r
 EOF
 }
 

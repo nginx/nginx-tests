@@ -285,10 +285,10 @@ sub uid_got {
 sub send_uid {
 	my ($url, $uid) = @_;
 	return http(<<EOF);
-GET $url HTTP/1.0
-Host: localhost
-Cookie: uid=$uid
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+Cookie: uid=$uid\r
+\r
 EOF
 }
 

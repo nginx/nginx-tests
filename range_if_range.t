@@ -65,31 +65,31 @@ my $t1;
 
 # If-Range
 
-$t1 = http_get_range('/t1.html', "Range: bytes=0-9\nIf-Range: wrong");
+$t1 = http_get_range('/t1.html', "Range: bytes=0-9\r\nIf-Range: wrong");
 like($t1, qr/200 OK/, 'if-range wrong');
 like($t1, qr/Last-Modified: /, 'if-range wrong - last modified');
 
 $t1 =~ m/^Last-Modified: ([ -~]*)\r\n/im;
 my $last = $1;
 
-$t1 = http_get_range('/t1.html', "Range: bytes=0-9\nIf-Range: $last");
+$t1 = http_get_range('/t1.html', "Range: bytes=0-9\r\nIf-Range: $last");
 like($t1, qr/ 206 /, 'if-range');
 
 # If-Range + add_header Last-Modified ""
 
-$t1 = http_get_range('/t2.html', "Range: bytes=0-9\nIf-Range: wrong");
+$t1 = http_get_range('/t2.html', "Range: bytes=0-9\r\nIf-Range: wrong");
 like($t1, qr/200 OK/, 'if-range notime');
 unlike($t1, qr/Last-Modified: /, 'if-range notime - no last modified');
 
 # If-Range + add_header Last-Modified "Mon, 28 Sep 1970 06:00:00 GMT"
 
-$t1 = http_get_range('/t3.html', "Range: bytes=0-9\nIf-Range: wrong");
+$t1 = http_get_range('/t3.html', "Range: bytes=0-9\r\nIf-Range: wrong");
 like($t1, qr/200 OK/, 'if-range time wrong');
 like($t1, qr/Last-Modified: Mon, 28 Sep 1970 06:00:00 GMT/,
 	'if-range time wrong - last modified');
 
 $t1 = http_get_range('/t3.html',
-	"Range: bytes=0-9\nIf-Range: Mon, 28 Sep 1970 06:00:00 GMT");
+	"Range: bytes=0-9\r\nIf-Range: Mon, 28 Sep 1970 06:00:00 GMT");
 like($t1, qr/ 206 /, 'if-range time');
 
 ###############################################################################
@@ -97,11 +97,11 @@ like($t1, qr/ 206 /, 'if-range time');
 sub http_get_range {
 	my ($url, $extra) = @_;
 	return http(<<EOF);
-GET $url HTTP/1.1
-Host: localhost
-Connection: close
-$extra
-
+GET $url HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+$extra\r
+\r
 EOF
 }
 

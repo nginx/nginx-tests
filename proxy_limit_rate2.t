@@ -79,10 +79,10 @@ is($body, 'X' x 40000, 'response body unlimited');
 sub get {
 	my ($uri) = @_;
 	my $r = http(<<EOF);
-GET $uri HTTP/1.1
-Host: localhost
-Connection: close
-
+GET $uri HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+\r
 EOF
 
 	http_content($r), $r =~ /X-Msec: (\d+)/g;

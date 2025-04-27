@@ -74,13 +74,13 @@ is($status{'reading'}, 0, 'not reading');
 # pipelined requests
 
 http(<<EOF);
-GET / HTTP/1.1
-Host: localhost
-
-GET / HTTP/1.1
-Host: localhost
-Connection: close
-
+GET / HTTP/1.1\r
+Host: localhost\r
+\r
+GET / HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+\r
 EOF
 
 %status = status('/stub');
@@ -98,7 +98,7 @@ is($status{'reading'}, 0, 'waiting state - not reading');
 is($status{'writing'}, 1, 'waiting state - not writing');
 
 http(<<EOF, start => 1, socket => $s, sleep => 0.2);
-GET /rate HTTP/1.0
+GET /rate HTTP/1.0\r
 EOF
 
 %status = status('/stub');
@@ -107,8 +107,8 @@ is($status{'reading'}, 1, 'reading state');
 is($status{'writing'}, 1, 'reading state - not writing');
 
 http(<<EOF, start => 1, socket => $s, sleep => 0.2);
-Host: localhost
-
+Host: localhost\r
+\r
 EOF
 
 %status = status('/stub');
@@ -155,9 +155,9 @@ sub get_body {
 sub http_post {
 	my ($url) = @_;
 	return http(<<EOF);
-POST $url HTTP/1.0
-Host: localhost
-
+POST $url HTTP/1.0\r
+Host: localhost\r
+\r
 EOF
 }
 

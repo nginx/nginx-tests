@@ -187,11 +187,11 @@ sub get_body {
 		or die "Can't create listening socket: $!\n";
 
 	my $r = <<EOF;
-GET $url HTTP/1.1
-Host: localhost
-Connection: close
-Content-Length: $length
-
+GET $url HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Content-Length: $length\r
+\r
 EOF
 
 	if (defined $body) {
@@ -251,10 +251,10 @@ EOF
 		my $buf = '';
 
 		$client->write(<<EOF);
-HTTP/1.1 200 OK
-Connection: close
-X-Port: $port
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+X-Port: $port\r
+\r
 OK
 EOF
 

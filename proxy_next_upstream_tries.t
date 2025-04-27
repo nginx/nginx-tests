@@ -178,9 +178,9 @@ sub http_daemon {
 
 		Test::Nginx::log_core('||', "$port: response, 404");
 		print $client <<EOF;
-HTTP/1.1 404 Not Found
-Connection: close
-
+HTTP/1.1 404 Not Found\r
+Connection: close\r
+\r
 EOF
 
 	} continue {

@@ -98,13 +98,13 @@ like(http_get_range('/cache/t.html', 'Range: bytes=0-2,4-'), qr/^SEE.*^THIS/ms,
 # If-Range HTTP-date request
 
 like(http_get_range('/proxy/t.html',
-	"Range: bytes=4-\nIf-Range: Mon, 28 Sep 1970 06:00:00 GMT"),
+	"Range: bytes=4-\r\nIf-Range: Mon, 28 Sep 1970 06:00:00 GMT"),
 	qr/^THIS/m, 'if-range last-modified proxy');
 
 # If-Range entity-tag request
 
 like(http_get_range('/proxy/t.html',
-	"Range: bytes=4-\nIf-Range: \"59a5401c-8\""),
+	"Range: bytes=4-\r\nIf-Range: \"59a5401c-8\""),
 	qr/^THIS/m, 'if-range etag proxy');
 
 # range sent using chunked transfer encoding
@@ -117,11 +117,11 @@ like(http_get_range('/proxy/t.html', 'Range: bytes=-2'),
 sub http_get_range {
 	my ($url, $extra) = @_;
 	return http(<<EOF);
-GET $url HTTP/1.1
-Host: localhost
-Connection: close
-$extra
-
+GET $url HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+$extra\r
+\r
 EOF
 }
 

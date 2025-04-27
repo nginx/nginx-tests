@@ -91,10 +91,10 @@ like(http_match_get('/t.html'), qr//, 'request 412 cached');
 sub http_match_get {
 	my ($url, %extra) = @_;
 	return http(<<EOF, %extra);
-GET $url HTTP/1.0
-Host: localhost
-If-Match: tt
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+If-Match: tt\r
+\r
 EOF
 }
 

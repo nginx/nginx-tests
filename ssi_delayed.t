@@ -107,9 +107,9 @@ sub http_daemon {
 		select undef, undef, undef, 0.5;
 
 		print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+\r
 $data
 EOF
 	}

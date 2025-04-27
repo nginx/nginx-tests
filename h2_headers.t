@@ -1206,23 +1206,23 @@ sub http_daemon {
 			$cookie_c = $1 if $headers =~ /^X-Cookie-c: ([\t -~]+)\r\n/im;
 
 			print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-X-Sent-Cookie: $cookie
-X-Sent-Cookie2: $cookie2
-X-Sent-Cookie-a: $cookie_a
-X-Sent-Cookie-c: $cookie_c
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+X-Sent-Cookie: $cookie\r
+X-Sent-Cookie2: $cookie2\r
+X-Sent-Cookie-a: $cookie_a\r
+X-Sent-Cookie-c: $cookie_c\r
+\r
 EOF
 
 		} elsif ($uri eq '/set-cookie') {
 
 			print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-Set-Cookie: a=b
-Set-Cookie: c=d
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+Set-Cookie: a=b\r
+Set-Cookie: c=d\r
+\r
 EOF
 
 		}

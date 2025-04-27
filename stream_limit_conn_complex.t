@@ -71,7 +71,7 @@ $t->run()->plan(4);
 like(get(port(8080)), qr/200 OK/, 'passed');
 
 my $s = http(<<EOF, start => 1, sleep => 0.2);
-GET / HTTP/1.0
+GET / HTTP/1.0\r
 EOF
 
 ok($s, 'long connection');

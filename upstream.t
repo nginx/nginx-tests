@@ -146,10 +146,10 @@ sub http_daemon {
 		}
 
 		print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-X-Port: $port
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+X-Port: $port\r
+\r
 OK
 EOF
 

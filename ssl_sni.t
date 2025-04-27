@@ -149,7 +149,7 @@ sub get_cert_cn {
 sub get_host {
 	my ($host, $sni) = @_;
 	return http(
-		"GET / HTTP/1.0\nHost: $host\n\n",
+		"GET / HTTP/1.0\r\nHost: $host\r\n\r\n",
 		SSL => 1,
 		SSL_hostname => $sni || $host
 	);

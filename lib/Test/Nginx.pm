@@ -828,18 +828,18 @@ sub log_in {
 sub http_get($;%) {
 	my ($url, %extra) = @_;
 	return http(<<EOF, %extra);
-GET $url HTTP/1.0
-Host: localhost
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+\r
 EOF
 }
 
 sub http_head($;%) {
 	my ($url, %extra) = @_;
 	return http(<<EOF, %extra);
-HEAD $url HTTP/1.0
-Host: localhost
-
+HEAD $url HTTP/1.0\r
+Host: localhost\r
+\r
 EOF
 }
 
@@ -937,11 +937,11 @@ sub http_end($;%) {
 sub http_gzip_request {
 	my ($url) = @_;
 	my $r = http(<<EOF);
-GET $url HTTP/1.1
-Host: localhost
-Connection: close
-Accept-Encoding: gzip
-
+GET $url HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Accept-Encoding: gzip\r
+\r
 EOF
 }
 

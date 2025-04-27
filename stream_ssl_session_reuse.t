@@ -212,9 +212,9 @@ sub http_daemon {
 		}
 
 		print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+\r
 EOF
 
 		close $client;

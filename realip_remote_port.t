@@ -85,10 +85,10 @@ sub http_sp_xff {
 	my ($url, $xff) = @_;
 
 	my $s = http(<<EOF, start => 1);
-GET $url HTTP/1.0
-Host: localhost
-X-Forwarded-For: $xff
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+X-Forwarded-For: $xff\r
+\r
 EOF
 
 	return ($s->sockport(), http_end($s));

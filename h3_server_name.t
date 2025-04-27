@@ -98,7 +98,7 @@ is(get3('test.example.com', 'localhost'), 'test', 'http3 - sni not found');
 
 sub get1 {
 	my ($host, $sni) = @_;
-	http("GET / HTTP/1.0\nHost: $host\n\n",
+	http("GET / HTTP/1.0\r\nHost: $host\r\n\r\n",
 		SSL => 1,
 		SSL_hostname => $sni || $host,
 		SSL_alpn_protocols => ['http/1.1'])

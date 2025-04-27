@@ -86,11 +86,11 @@ unlike(http_head('/'), qr/Content-Encoding: gzip/, 'no gzip head');
 sub http_gzip_head {
 	my ($uri) = @_;
 	return http(<<EOF);
-HEAD $uri HTTP/1.1
-Host: localhost
-Connection: close
-Accept-Encoding: gzip
-
+HEAD $uri HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Accept-Encoding: gzip\r
+\r
 EOF
 }
 

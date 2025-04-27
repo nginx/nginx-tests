@@ -133,10 +133,10 @@ sub http_get_auth {
 	my $auth = encode_base64($user . ':' . $password, '');
 
 	return http(<<EOF);
-GET $url HTTP/1.0
-Host: localhost
-Authorization: Basic $auth
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+Authorization: Basic $auth\r
+\r
 EOF
 }
 

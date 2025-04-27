@@ -159,11 +159,11 @@ unlike(http_get_range('/t4.html', 'Range: bytes=0-9'), qr/ 206 /,
 sub http_get_range {
 	my ($url, $extra) = @_;
 	return http(<<EOF);
-GET $url HTTP/1.1
-Host: localhost
-Connection: close
-$extra
-
+GET $url HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+$extra\r
+\r
 EOF
 }
 

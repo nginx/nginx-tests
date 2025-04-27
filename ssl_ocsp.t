@@ -429,7 +429,7 @@ sub get_socket {
 	my $port = $extra{port} || 8443;
 
 	return http(
-		"GET /serial HTTP/1.0\nHost: $sni\n\n",
+		"GET /serial HTTP/1.0\r\nHost: $sni\r\n\r\n",
 		start => 1, PeerAddr => '127.0.0.1:' . port($port),
 		SSL => 1,
 		SSL_hostname => $sni,
@@ -506,10 +506,10 @@ sub http_daemon {
 		select undef, undef, undef, 0.02;
 
 		$headers = <<"EOF";
-HTTP/1.1 200 OK
-Connection: close
-Content-Type: application/ocsp-response
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+Content-Type: application/ocsp-response\r
+\r
 EOF
 
 		local $/;

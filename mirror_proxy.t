@@ -115,10 +115,10 @@ sub http_post {
 	my ($url, %extra) = @_;
 
 	http(<<EOF, %extra);
-POST $url HTTP/1.0
-Host: localhost
-Content-Length: 10
-
+POST $url HTTP/1.0\r
+Host: localhost\r
+Content-Length: 10\r
+\r
 1234567890
 EOF
 }

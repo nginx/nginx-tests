@@ -117,12 +117,12 @@ sub update_name {
 	$name->{SRV} = '' unless $name->{SRV};
 
 	my $req =<<EOF;
-GET / HTTP/1.0
-Host: localhost
-X-A: $name->{A}
-X-ERROR: $name->{ERROR}
-X-SRV: $name->{SRV}
-
+GET / HTTP/1.0\r
+Host: localhost\r
+X-A: $name->{A}\r
+X-ERROR: $name->{ERROR}\r
+X-SRV: $name->{SRV}\r
+\r
 EOF
 
 	my ($gen) = http($req, socket => sock()) =~ /X-Gen: (\d+)/;
@@ -289,10 +289,10 @@ sub process_name {
 
 	Test::Nginx::log_core('||', "$port: response, 200");
 	print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-X-Gen: $cnt
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+X-Gen: $cnt\r
+\r
 OK
 EOF
 

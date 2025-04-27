@@ -359,9 +359,9 @@ sub process_socket {
 
 	Test::Nginx::log_core('||', "$port: response, 200");
 	print $client <<EOF;
-HTTP/1.1 200 OK
-X-Port: $port
-
+HTTP/1.1 200 OK\r
+X-Port: $port\r
+\r
 OK
 EOF
 

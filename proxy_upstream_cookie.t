@@ -106,11 +106,11 @@ sub http_get_uc {
 	my ($cookie) = @_;
 
 	http(<<EOF) =~ qr/^X-Upstream-Cookie:\s(.+?)\x0d?$/mi;
-GET / HTTP/1.1
-Host: localhost
-Connection: close
-X-Test-Cookie: $cookie
-
+GET / HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+X-Test-Cookie: $cookie\r
+\r
 EOF
 
 	return $1;

@@ -104,11 +104,11 @@ like($t1, qr/Content-Range: bytes 0-10,11-99\/$fsz/,
 sub http_get_range {
 	my ($url, $extra) = @_;
 	return http(<<EOF);
-HEAD $url HTTP/1.1
-Host: localhost
-Connection: close
-$extra
-
+HEAD $url HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+$extra\r
+\r
 EOF
 }
 

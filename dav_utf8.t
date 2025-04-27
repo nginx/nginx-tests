@@ -66,44 +66,44 @@ my $file = "file-%D0%BC%D0%B8";
 my $file_path = "file-\x{043c}\x{0438}";
 
 $r = http(<<EOF . '0123456789');
-PUT /$file HTTP/1.1
-Host: localhost
-Connection: close
-Content-Length: 10
-
+PUT /$file HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Content-Length: 10\r
+\r
 EOF
 
 like($r, qr/201 Created.*(Content-Length|\x0d\0a0\x0d\x0a)/ms, 'put file');
 ok(fileexists("$d/$file_path"), 'put file exist');
 
 $r = http(<<EOF);
-COPY /$file HTTP/1.1
-Host: localhost
-Destination: /$file-moved
-Connection: close
-
+COPY /$file HTTP/1.1\r
+Host: localhost\r
+Destination: /$file-moved\r
+Connection: close\r
+\r
 EOF
 
 like($r, qr/204 No Content/, 'copy file');
 ok(fileexists("$d/$file_path-moved"), 'copy file exist');
 
 $r = http(<<EOF);
-MOVE /$file HTTP/1.1
-Host: localhost
-Destination: /$file-moved
-Connection: close
-
+MOVE /$file HTTP/1.1\r
+Host: localhost\r
+Destination: /$file-moved\r
+Connection: close\r
+\r
 EOF
 
 like($r, qr/204 No Content/, 'move file');
 ok(!fileexists("$d/$file_path"), 'file moved');
 
 $r = http(<<EOF);
-DELETE /$file-moved HTTP/1.1
-Host: localhost
-Connection: close
-Content-Length: 0
-
+DELETE /$file-moved HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Content-Length: 0\r
+\r
 EOF
 
 like($r, qr/204 No Content/, 'delete file');
@@ -113,42 +113,42 @@ my $dir = "dir-%D0%BC%D0%B8";
 my $dir_path = "dir-\x{043c}\x{0438}";
 
 $r = http(<<EOF);
-MKCOL /$dir/ HTTP/1.1
-Host: localhost
-Connection: close
-
+MKCOL /$dir/ HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+\r
 EOF
 
 like($r, qr/201 Created.*(Content-Length|\x0d\0a0\x0d\x0a)/ms, 'mkcol');
 ok(fileexists("$d/$dir_path"), 'mkcol exist');
 
 $r = http(<<EOF);
-COPY /$dir/ HTTP/1.1
-Host: localhost
-Destination: /$dir-moved/
-Connection: close
-
+COPY /$dir/ HTTP/1.1\r
+Host: localhost\r
+Destination: /$dir-moved/\r
+Connection: close\r
+\r
 EOF
 
 like($r, qr/201 Created.*(Content-Length|\x0d\0a0\x0d\x0a)/ms, 'copy dir');
 ok(fileexists("$d/$dir_path-moved"), 'copy dir exist');
 
 $r = http(<<EOF);
-MOVE /$dir/ HTTP/1.1
-Host: localhost
-Destination: /$dir-moved/
-Connection: close
-
+MOVE /$dir/ HTTP/1.1\r
+Host: localhost\r
+Destination: /$dir-moved/\r
+Connection: close\r
+\r
 EOF
 
 like($r, qr/201 Created.*(Content-Length|\x0d\0a0\x0d\x0a)/ms, 'move dir');
 ok(!fileexists("$d/$dir_path"), 'dir moved');
 
 $r = http(<<EOF);
-DELETE /$dir-moved/ HTTP/1.1
-Host: localhost
-Connection: close
-
+DELETE /$dir-moved/ HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+\r
 EOF
 
 unlike($r, qr/200 OK.*Content-Length|Transfer-Encoding/ms, 'delete dir');

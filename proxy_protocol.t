@@ -138,9 +138,9 @@ is($t->read_file('pp6.log'), "2001:db8::1:123\n", 'tcp6 log');
 sub pp_get {
 	my ($url, $proxy) = @_;
 	return http($proxy . <<EOF);
-GET $url HTTP/1.0
-Host: localhost
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+\r
 EOF
 }
 
