@@ -1,9 +1,10 @@
 #!/usr/bin/perl
 
 # (C) Sergey Kandaurov
+# (C) Aleksei Bavshin
 # (C) Nginx, Inc.
 
-# Tests for http ssl module, loading "engine:..." keys.
+# Tests for http ssl module, loading "store:..." keys from OpenSSL providers.
 
 ###############################################################################
 
@@ -24,11 +25,10 @@ select STDOUT; $| = 1;
 
 plan(skip_all => 'win32') if $^O eq 'MSWin32';
 
-plan(skip_all => 'may not work, leaves coredump')
-	unless $ENV{TEST_NGINX_UNSAFE};
+my $t = Test::Nginx->new()->has(qw/http proxy http_ssl openssl:3/)
+	->has_daemon('openssl')->has_daemon('softhsm2-util');
 
-my $t = Test::Nginx->new()->has(qw/http proxy http_ssl/)->has_daemon('openssl')
-	->has_daemon('softhsm2-util');
+plan(skip_all => "not yet") unless $t->has_version('1.29.0');
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -39,6 +39,8 @@ daemon off;
 events {
 }
 
+env SOFTHSM2_CONF;
+
 http {
     %%TEST_GLOBALS_HTTP%%
 
@@ -48,7 +50,9 @@ http {
         server_name  localhost;
 
         ssl_certificate localhost.crt;
-        ssl_certificate_key engine:pkcs11:id_00;
+        ssl_certificate_key "store:pkcs11:token=NginxZero;object=nx_key_0";
+
+        ssl_password_file pin.txt;
 
         location / {
             # index index.html by default
@@ -70,7 +74,9 @@ http {
         server_name  localhost;
 
         ssl_certificate $ssl_server_name.crt;
-        ssl_certificate_key engine:pkcs11:id_00;
+        ssl_certificate_key "store:pkcs11:token=NginxZero;object=nx_key_0";
+
+        ssl_password_file pin.txt;
 
         location / {
             # index index.html by default
@@ -80,11 +86,8 @@ http {
 
 EOF
 
-# Create a SoftHSM token with a secret key, and configure OpenSSL
-# to access it using the pkcs11 engine, see detailed example
-# posted by Dmitrii Pichulin here:
-#
-# http://mailman.nginx.org/pipermail/nginx-devel/2014-October/006151.html
+# Create a SoftHSM token with a secret key, and configure OpenSSL to access it
+# using the pkcs11 provider (https://github.com/latchset/pkcs11-provider).
 #
 # Note that library paths vary on different systems,
 # and may need to be adjusted.
@@ -112,17 +115,22 @@ my $openssl_conf = <<EOF;
 openssl_conf = openssl_def
 
 [openssl_def]
-engines = engine_section
+providers = provider_sect
 
-[engine_section]
-pkcs11 = pkcs11_section
+[provider_sect]
+default = default_sect
+pkcs11 = pkcs11_sect
 
-[pkcs11_section]
-engine_id = pkcs11
-dynamic_path = /usr/local/lib/engines/pkcs11.so
-MODULE_PATH = $libsofthsm2_path
-init = 1
-PIN = 1234
+[default_sect]
+activate = 1
+
+[pkcs11_sect]
+pkcs11-module-path = $libsofthsm2_path
+pkcs11-module-cache-pins = cache
+# https://github.com/latchset/pkcs11-provider/commit/ab6370fd
+pkcs11-module-quirks = no-deinit no-operation-state
+module = /usr/local/lib/ossl-modules/pkcs11.so
+activate = 1
 
 [ req ]
 default_bits = 2048
@@ -131,7 +139,7 @@ distinguished_name = req_distinguished_name
 [ req_distinguished_name ]
 EOF
 
-$openssl_conf =~ s|^(?=dynamic_path)|# |m if $^O ne 'freebsd';
+$openssl_conf =~ s|^(?=module)|# |m if $^O ne 'freebsd';
 $t->write_file('openssl.conf', $openssl_conf);
 
 my $d = $t->testdir();
@@ -161,19 +169,20 @@ foreach my $name ('localhost') {
 		or die "Can't import private key: $!\n";
 
 	system('openssl req -x509 -new '
-		. "-subj /CN=$name/ -out $d/$name.crt -text "
-		. "-engine pkcs11 -keyform engine -key id_00 "
+		. "-subj /CN=$name/ -out $d/$name.crt -text -passin pass:1234 "
+		. '-key "pkcs11:token=NginxZero;object=nx_key_0" '
 		. ">>$d/openssl.out 2>&1") == 0
-		or plan(skip_all => "missing engine");
+		or plan(skip_all => "missing pkcs11-provider");
 }
+
+$t->write_file('pin.txt', '1234');
+$t->write_file('index.html', '');
 
 $t->run()->plan(2);
 
-$t->write_file('index.html', '');
-
 ###############################################################################
 
-like(http_get('/proxy'), qr/200 OK/, 'ssl engine keys');
+like(http_get('/proxy'), qr/200 OK/, 'ssl provider keys');
 like(http_get('/var'), qr/200 OK/, 'ssl_certificate with variable');
 
 ###############################################################################
