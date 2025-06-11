@@ -177,9 +177,9 @@ like(http_host_header("localhost\x02", 1), qr/ 400 /, 'control');
 sub http_host_header {
 	my ($host, $all) = @_;
 	my ($r) = http(<<EOF);
-GET / HTTP/1.0
-Host: $host
-
+GET / HTTP/1.0\r
+Host: $host\r
+\r
 EOF
 	return ($all ? $r : http_content($r));
 }
@@ -187,9 +187,9 @@ EOF
 sub http_absolute_path {
 	my ($host, $all) = @_;
 	my ($r) = http(<<EOF);
-GET http://$host/ HTTP/1.0
-Host: localhost
-
+GET http://$host/ HTTP/1.0\r
+Host: localhost\r
+\r
 EOF
 	return ($all ? $r : http_content($r));
 }

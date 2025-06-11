@@ -97,10 +97,10 @@ sub http_get_length {
 	my ($url, $body) = @_;
 	my $length = length $body;
 	return http(<<EOF);
-GET $url HTTP/1.0
-Host: localhost
-Content-Length: $length
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+Content-Length: $length\r
+\r
 $body
 EOF
 }
@@ -120,10 +120,10 @@ sub fastcgi_daemon {
 		sleep 3 if $port == port(8081);
 
 		print <<EOF;
-Location: http://localhost/redirect
-Content-Type: text/html
-X-Length: $len
-
+Location: http://localhost/redirect\r
+Content-Type: text/html\r
+X-Length: $len\r
+\r
 EOF
 	}
 

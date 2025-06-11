@@ -329,9 +329,9 @@ sub http_daemon {
 		my $data = $t->read_file($uri);
 
 		print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+\r
 $data
 EOF
 

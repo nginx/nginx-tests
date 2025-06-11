@@ -83,17 +83,17 @@ $t->plan(8);
 ###############################################################################
 
 like(http(<<EOF), qr/^X-IP: 192.0.2.1/m, 'realip');
-GET / HTTP/1.0
-Host: localhost
-X-Real-IP: 192.0.2.1
-
+GET / HTTP/1.0\r
+Host: localhost\r
+X-Real-IP: 192.0.2.1\r
+\r
 EOF
 
 like(http(<<EOF), qr/^X-IP: 192.0.2.1/m, 'realip custom');
-GET /custom HTTP/1.0
-Host: localhost
-X-Real-IP-Custom: 192.0.2.1
-
+GET /custom HTTP/1.0\r
+Host: localhost\r
+X-Real-IP-Custom: 192.0.2.1\r
+\r
 EOF
 
 like(http_xff('/1', '10.0.0.1, 192.0.2.1'), qr/^X-IP: 192.0.2.1/m,
@@ -104,28 +104,28 @@ like(http_xff('/2', '10.0.1.1, 192.0.2.1, 127.0.0.1'),
 	qr/^X-IP: 192.0.2.1/m, 'realip recursive on');
 
 like(http(<<EOF), qr/^X-IP: 10.0.1.1/m, 'realip multi xff recursive off');
-GET /1 HTTP/1.0
-Host: localhost
-X-Forwarded-For: 192.0.2.1
-X-Forwarded-For: 127.0.0.1, 10.0.1.1
-
+GET /1 HTTP/1.0\r
+Host: localhost\r
+X-Forwarded-For: 192.0.2.1\r
+X-Forwarded-For: 127.0.0.1, 10.0.1.1\r
+\r
 EOF
 
 like(http(<<EOF), qr/^X-IP: 192.0.2.1/m, 'realip multi xff recursive on');
-GET /2 HTTP/1.0
-Host: localhost
-X-Forwarded-For: 10.0.1.1
-X-Forwarded-For: 192.0.2.1
-X-Forwarded-For: 127.0.0.1
-
+GET /2 HTTP/1.0\r
+Host: localhost\r
+X-Forwarded-For: 10.0.1.1\r
+X-Forwarded-For: 192.0.2.1\r
+X-Forwarded-For: 127.0.0.1\r
+\r
 EOF
 
 my $s = IO::Socket::INET->new('127.0.0.1:' . port(8081));
 like(http(<<EOF, socket => $s), qr/ 204 .*192.0.2.1/s, 'realip post read');
-GET / HTTP/1.0
-Host: localhost
-X-Real-IP: 192.0.2.1
-
+GET / HTTP/1.0\r
+Host: localhost\r
+X-Real-IP: 192.0.2.1\r
+\r
 EOF
 
 ###############################################################################
@@ -133,10 +133,10 @@ EOF
 sub http_xff {
 	my ($uri, $xff) = @_;
 	return http(<<EOF);
-GET $uri HTTP/1.0
-Host: localhost
-X-Forwarded-For: $xff
-
+GET $uri HTTP/1.0\r
+Host: localhost\r
+X-Forwarded-For: $xff\r
+\r
 EOF
 }
 
