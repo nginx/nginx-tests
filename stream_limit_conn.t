@@ -92,7 +92,7 @@ like(get(), qr/200 OK/, 'passed');
 # same and other zones
 
 my $s = http(<<EOF, start => 1, sleep => 0.2);
-GET / HTTP/1.0
+GET / HTTP/1.0\r
 EOF
 
 ok($s, 'long connection');
@@ -102,8 +102,8 @@ like(get('127.0.0.1:' . port(8081)), qr/200 OK/, 'passed different zone');
 like(get('127.0.0.1:' . port(8085)), qr/200 OK/, 'passed same zone unlimited');
 
 ok(http(<<EOF, socket => $s), 'long connection closed');
-Host: localhost
-
+Host: localhost\r
+\r
 EOF
 
 # zones proxy chain

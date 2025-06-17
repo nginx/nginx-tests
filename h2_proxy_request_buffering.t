@@ -252,9 +252,9 @@ sub get_body {
 	};
 	$f->{http_end} = sub {
 		$client->write(<<EOF);
-HTTP/1.1 200 OK
-Connection: close
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+\r
 EOF
 
 		$client->close;

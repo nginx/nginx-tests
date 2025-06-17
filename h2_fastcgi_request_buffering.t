@@ -249,9 +249,9 @@ sub get_body {
 		local $SIG{PIPE} = 'IGNORE';
 
 		fastcgi_respond($client, $version, $id, <<EOF);
-Status: 200 OK
-Connection: close
-
+Status: 200 OK\r
+Connection: close\r
+\r
 OK
 EOF
 

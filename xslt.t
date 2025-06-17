@@ -124,11 +124,11 @@ like(http_get("/x5"), qr!200 OK.*param1=localhost!ms, 'params variable');
 
 unlike(http_get("/x1"), qr!Accept-Ranges!, 'no Accept-Ranges');
 like(http(<<EOF), qr!200 OK.*test xslt result!ms, 'no ranges');
-GET /x1 HTTP/1.1
-Host: localhost
-Connection: close
-Range: bytes=-10
-
+GET /x1 HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Range: bytes=-10\r
+\r
 EOF
 
 ###############################################################################

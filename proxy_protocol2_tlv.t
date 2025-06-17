@@ -128,9 +128,9 @@ like($r, qr/X-SSL-BINARY: true/, 'SSL_BINARY');
 sub pp_get {
 	my ($url, $proxy) = @_;
 	return http($proxy . <<EOF);
-GET $url HTTP/1.0
-Host: localhost
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+\r
 EOF
 }
 

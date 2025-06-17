@@ -65,18 +65,18 @@ local $TODO = 'not yet' unless $t->has_version('1.23.0');
 my $r;
 
 $r = http(<<EOF);
-GET / HTTP/1.0
-Host: localhost
-X-Forwarded-For: foo
-X-Forwarded-For: bar
-X-Forwarded-For: bazz
-Cookie: foo
-Cookie: bar
-Cookie: bazz
-Foo: foo
-Foo: bar
-Foo: bazz
-
+GET / HTTP/1.0\r
+Host: localhost\r
+X-Forwarded-For: foo\r
+X-Forwarded-For: bar\r
+X-Forwarded-For: bazz\r
+Cookie: foo\r
+Cookie: bar\r
+Cookie: bazz\r
+Foo: foo\r
+Foo: bar\r
+Foo: bazz\r
+\r
 EOF
 
 like($r, qr/X-Forwarded-For: foo, bar, bazz/,
@@ -95,28 +95,28 @@ like($r, qr/X-Foo: foo, bar, bazz/,
 sub http_get_headers {
 	my ($url, %extra) = @_;
 	return http(<<EOF, %extra);
-GET $url HTTP/1.0
-Host: localhost
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+\r
 EOF
 }
 
@@ -136,12 +136,12 @@ sub fastcgi_daemon {
 		my $foo = $ENV{HTTP_FOO} || '';
 
 		print <<EOF;
-Location: http://localhost/redirect
-Content-Type: text/html
-X-Forwarded-For: $xfwd
-X-Cookie: $cookie
-X-Foo: $foo
-
+Location: http://localhost/redirect\r
+Content-Type: text/html\r
+X-Forwarded-For: $xfwd\r
+X-Cookie: $cookie\r
+X-Foo: $foo\r
+\r
 SEE-THIS
 $count
 EOF

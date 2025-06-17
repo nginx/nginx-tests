@@ -388,10 +388,10 @@ sub http_daemon {
 		select undef, undef, undef, 0.02;
 
 		$headers = <<"EOF";
-HTTP/1.1 200 OK
-Connection: close
-Content-Type: application/ocsp-response
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+Content-Type: application/ocsp-response\r
+\r
 EOF
 
 		local $/;

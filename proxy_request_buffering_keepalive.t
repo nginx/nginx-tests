@@ -76,10 +76,10 @@ $t->run();
 # as remain request body.
 
 http(<<EOF);
-GET /t1 HTTP/1.0
-Host: localhost
-Content-Length: 10
-
+GET /t1 HTTP/1.0\r
+Host: localhost\r
+Content-Length: 10\r
+\r
 EOF
 
 like(http_get('/t1'), qr/200 OK.*SEE/ms, 'keepalive after discarded');
