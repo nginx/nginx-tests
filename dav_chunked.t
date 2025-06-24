@@ -58,28 +58,28 @@ $t->run();
 my $r;
 
 $r = http(<<EOF);
-PUT /file HTTP/1.1
-Host: localhost
-Connection: close
-Transfer-Encoding: chunked
-
-a
-1234567890
-0
-
+PUT /file HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Transfer-Encoding: chunked\r
+\r
+a\r
+1234567890\r
+0\r
+\r
 EOF
 
 like($r, qr/201 Created.*(Content-Length|\x0d\0a0\x0d\x0a)/ms, 'put chunked');
 is($t->read_file('file'), '1234567890', 'put content');
 
 $r = http(<<EOF);
-PUT /file HTTP/1.1
-Host: localhost
-Connection: close
-Transfer-Encoding: chunked
-
-0
-
+PUT /file HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Transfer-Encoding: chunked\r
+\r
+0\r
+\r
 EOF
 
 like($r, qr/204 No Content/, 'put chunked empty');
@@ -88,11 +88,11 @@ is($t->read_file('file'), '', 'put empty content');
 my $body = ('a' . CRLF . '1234567890' . CRLF) x 1024 . '0' . CRLF . CRLF;
 
 $r = http(<<EOF);
-PUT /file HTTP/1.1
-Host: localhost
-Connection: close
-Transfer-Encoding: chunked
-
+PUT /file HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Transfer-Encoding: chunked\r
+\r
 $body
 EOF
 

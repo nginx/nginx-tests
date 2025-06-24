@@ -237,9 +237,9 @@ like($response, qr/502 Bad/, 'error error');
 sub http_host_header {
 	my ($host, $uri) = @_;
 	return http(<<EOF);
-GET $uri HTTP/1.0
-Host: $host
-
+GET $uri HTTP/1.0\r
+Host: $host\r
+\r
 EOF
 }
 
