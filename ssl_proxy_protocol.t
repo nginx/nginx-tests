@@ -149,9 +149,9 @@ sub pp_get {
 	my $s = http($proxy, start => 1);
 
 	return http(<<EOF, socket => $s, SSL => 1);
-GET $url HTTP/1.0
-Host: localhost
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+\r
 EOF
 }
 

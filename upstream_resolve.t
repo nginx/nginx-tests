@@ -162,13 +162,13 @@ sub update_name {
 	$name->{ERROR} = '' unless $name->{ERROR};
 
 	my $req =<<EOF;
-GET / HTTP/1.0
-Host: localhost
-X-A: $name->{A}
-X-AAAA: $name->{AAAA}
-X-CNAME: $name->{CNAME}
-X-ERROR: $name->{ERROR}
-
+GET / HTTP/1.0\r
+Host: localhost\r
+X-A: $name->{A}\r
+X-AAAA: $name->{AAAA}\r
+X-CNAME: $name->{CNAME}\r
+X-ERROR: $name->{ERROR}\r
+\r
 EOF
 
 	my ($gen) = http($req, socket => sock()) =~ /X-Gen: (\d+)/;
@@ -343,21 +343,21 @@ sub process_name {
 	$uri = $1 if $headers =~ /^\S+\s+([^ ]+)\s+HTTP/i;
 	return 1 if $uri eq '';
 
-	$headers =~ /X-A: (.*)$/m;
+	$headers =~ /^X-A: ([\t -~]*)\r?$/im;
 	map { push @{$h{A}}, $_ } split(/ /, $1);
-	$headers =~ /X-AAAA: (.*)$/m;
+	$headers =~ /^X-AAAA: ([\t -~]*)\r$/im;
 	map { push @{$h{AAAA}}, $_ } split(/ /, $1);
-	$headers =~ /X-CNAME: (.*)$/m;
+	$headers =~ /^X-CNAME: ([\t -~]*)\r$/im;
 	$h{CNAME} = $1;
-	$headers =~ /X-ERROR: (.*)$/m;
+	$headers =~ /^X-ERROR: ([\t -~]*)\r$/im;
 	$h{ERROR} = $1;
 
 	Test::Nginx::log_core('||', "$port: response, 200");
 	print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-X-Gen: $cnt
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+X-Gen: $cnt\r
+\r
 OK
 EOF
 

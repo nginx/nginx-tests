@@ -93,9 +93,9 @@ unlike(http_get('/'), qr/ 200 /, 'no include');
 sub http_post {
 	my ($uri) = @_;
 	http(<<EOF);
-POST $uri HTTP/1.0
-Host: localhost
-
+POST $uri HTTP/1.0\r
+Host: localhost\r
+\r
 EOF
 }
 

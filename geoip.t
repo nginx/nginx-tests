@@ -180,10 +180,10 @@ like($r, qr/X-Country-Name: United States/, 'geoip ipv6 country name');
 sub http_xff {
 	my ($xff) = @_;
 	return http(<<EOF);
-GET / HTTP/1.0
-Host: localhost
-X-Forwarded-For: $xff
-
+GET / HTTP/1.0\r
+Host: localhost\r
+X-Forwarded-For: $xff\r
+\r
 EOF
 }
 

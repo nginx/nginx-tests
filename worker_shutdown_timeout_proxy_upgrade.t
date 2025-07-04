@@ -59,11 +59,11 @@ $t->run()->waitforsocket('127.0.0.1:' . port(8081));
 ###############################################################################
 
 my $s = http(<<EOF, start => 1);
-GET / HTTP/1.1
-Host: localhost
-Upgrade: foo
-Connection: Upgrade
-
+GET / HTTP/1.1\r
+Host: localhost\r
+Upgrade: foo\r
+Connection: Upgrade\r
+\r
 EOF
 
 my ($sel, $buf) = IO::Select->new($s);
@@ -108,11 +108,11 @@ sub http_daemon {
 
 		next if $headers eq '';
 
-		print $client <<'EOF';
-HTTP/1.1 101 Switching
-Upgrade: foo
-Connection: Upgrade
-
+		print $client <<"EOF";
+HTTP/1.1 101 Switching\r
+Upgrade: foo\r
+Connection: Upgrade\r
+\r
 EOF
 
 	}
