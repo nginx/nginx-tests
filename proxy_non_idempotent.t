@@ -127,9 +127,9 @@ sub http_post {
 	my $cl = $extra{cl} || 0;
 
 	http(<<"EOF");
-POST $uri HTTP/1.0
-Content-Length: $cl
-
+POST $uri HTTP/1.0\r
+Content-Length: $cl\r
+\r
 EOF
 }
 

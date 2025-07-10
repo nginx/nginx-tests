@@ -118,10 +118,10 @@ sub http_daemon {
 		$uri = $1 if $headers =~ /^\S+\s+([^ ]+)\s+HTTP/i;
 
 		if (grep { $uri eq $_ } ('/', '/u')) {
-			print $client <<'EOF';
-HTTP/1.1 200 OK
-Connection: close
-
+			print $client <<"EOF";
+HTTP/1.1 200 OK\r
+Connection: close\r
+\r
 EOF
 			print $client "TEST-OK-IF-YOU-SEE-THIS"
 				unless $headers =~ /^HEAD/i;
@@ -129,9 +129,9 @@ EOF
 		} elsif ($uri eq '/multi') {
 
 			print $client <<"EOF";
-HTTP/1.1 200 OK
-Connection: close
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+\r
 TEST-OK-IF-YOU-SEE-THIS
 EOF
 
@@ -141,9 +141,9 @@ EOF
 		} else {
 
 			print $client <<"EOF";
-HTTP/1.1 404 Not Found
-Connection: close
-
+HTTP/1.1 404 Not Found\r
+Connection: close\r
+\r
 Oops, '$uri' not found
 EOF
 		}

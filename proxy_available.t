@@ -114,9 +114,9 @@ sub http_daemon {
 		next if $headers eq '';
 
 		my $r = <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+\r
 EOF
 
 		$r = $r . 'x' x (512 - length($r));

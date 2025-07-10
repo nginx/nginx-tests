@@ -93,13 +93,13 @@ my $bytes_sent = length http_get('/bytes');
 # pipelined requests
 
 http(<<EOF);
-GET /pipe HTTP/1.1
-Host: localhost
-
-GET /pipe HTTP/1.1
-Host: localhost
-Connection: close
-
+GET /pipe HTTP/1.1\r
+Host: localhost\r
+\r
+GET /pipe HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+\r
 EOF
 
 $t->stop();
@@ -116,7 +116,7 @@ $log = $t->read_file('msec.log');
 like($log, qr!/msec [\d\.]+!, 'msec');
 
 $log = $t->read_file('request.log');
-like($log, qr!/request 200 39 [\d\.]+!, 'request');
+like($log, qr!/request 200 42 [\d\.]+!, 'request');
 
 $log = $t->read_file('bytes.log');
 is($log, "/bytes $bytes_sent 2\n", 'bytes sent');

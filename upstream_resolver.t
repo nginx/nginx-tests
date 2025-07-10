@@ -104,9 +104,9 @@ sub waitfordns {
 	}
 
 	my $req =<<EOF;
-GET / HTTP/1.0
-Host: localhost
-
+GET / HTTP/1.0\r
+Host: localhost\r
+\r
 EOF
 
 	for (1 .. 10) {
@@ -245,10 +245,10 @@ sub control_handler {
 
 	Test::Nginx::log_core('||', "$port: response, 200");
 	print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-X-Gen: $cnt
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+X-Gen: $cnt\r
+\r
 OK
 EOF
 }
