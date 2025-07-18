@@ -254,15 +254,15 @@ sub update_name {
 	$name->{SRV} = '' unless $name->{SRV};
 
 	my $req =<<EOF;
-GET / HTTP/1.0
-Host: localhost
-X-A: $name->{A}
-X-AAAA: $name->{AAAA}
-X-CNAME: $name->{CNAME}
-X-ERROR: $name->{ERROR}
-X-SERROR: $name->{SERROR}
-X-SRV: $name->{SRV}
-
+GET / HTTP/1.0\r
+Host: localhost\r
+X-A: $name->{A}\r
+X-AAAA: $name->{AAAA}\r
+X-CNAME: $name->{CNAME}\r
+X-ERROR: $name->{ERROR}\r
+X-SERROR: $name->{SERROR}\r
+X-SRV: $name->{SRV}\r
+\r
 EOF
 
 	my ($gen) = http($req, socket => sock()) =~ /X-Gen: (\d+)/;
@@ -503,22 +503,22 @@ sub process_name {
 	$uri = $1 if $headers =~ /^\S+\s+([^ ]+)\s+HTTP/i;
 	return 1 if $uri eq '';
 
-	$headers =~ /X-A: (.*)$/m;
+	$headers =~ /^X-A: ([\t -~]*)\r$/im;
 	map { push @{$h{A}}, $_ } split(/ /, $1);
-	$headers =~ /X-AAAA: (.*)$/m;
+	$headers =~ /^X-AAAA: ([\t -~]*)\r$/im;
 	map { push @{$h{AAAA}}, $_ } split(/ /, $1);
-	$headers =~ /X-SRV: (.*)$/m;
+	$headers =~ /^X-SRV: ([\t -~]*)\r$/im;
 	map { push @{$h{SRV}}, $_ } split(/;/, $1);
-	$headers =~ /X-CNAME: (.+)$/m and $h{CNAME} = $1;
-	$headers =~ /X-ERROR: (.+)$/m and $h{ERROR} = $1;
-	$headers =~ /X-SERROR: (.+)$/m and $h{SERROR} = $1;
+	$headers =~ /^X-CNAME: ([\t -~]+)\r$/im and $h{CNAME} = $1;
+	$headers =~ /^X-ERROR: ([\t -~]+)\r$/im and $h{ERROR} = $1;
+	$headers =~ /^X-SERROR: ([\t -~]+)\r$/im and $h{SERROR} = $1;
 
 	Test::Nginx::log_core('||', "$port: response, 200");
 	print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-X-Gen: $cnt
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+X-Gen: $cnt\r
+\r
 OK
 EOF
 

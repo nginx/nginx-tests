@@ -181,9 +181,9 @@ sub http_daemon {
 			sleep 4;
 
 			print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+\r
 EOF
 		}
 

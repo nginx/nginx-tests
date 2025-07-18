@@ -73,10 +73,10 @@ unlike($r, qr/\\x0d(\\x0a)?0\\x0d(\\x0a)?\\x0d(\\x0a)?\w/, 'only final chunk');
 sub get {
 	my ($url, $extra) = @_;
 	return http(<<EOF);
-GET $url HTTP/1.1
-Host: localhost
-Connection: close
-
+GET $url HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+\r
 EOF
 }
 

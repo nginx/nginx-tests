@@ -273,11 +273,11 @@ like(http_get('/escape.html'), qr/MISS/, 'unescaped after escaped');
 sub get {
 	my ($url, $extra, %extra) = @_;
 	return http(<<EOF, %extra);
-GET $url HTTP/1.1
-Host: localhost
-Connection: close
-X-Cache-Control: $extra
-
+GET $url HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+X-Cache-Control: $extra\r
+\r
 EOF
 }
 
