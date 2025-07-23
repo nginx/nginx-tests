@@ -112,19 +112,19 @@ sub http_noclose_daemon {
 
 		if ($nolen) {
 
-			print $client <<'EOF';
-HTTP/1.1 200 OK
-Connection: close
-
+			print $client <<"EOF";
+HTTP/1.1 200 OK\r
+Connection: close\r
+\r
 TEST-OK-IF-YOU-SEE-THIS
 EOF
 		} elsif ($multi) {
 
 			print $client <<"EOF";
-HTTP/1.1 200 OK
-Content-Length: 32
-Connection: close
-
+HTTP/1.1 200 OK\r
+Content-Length: 32\r
+Connection: close\r
+\r
 TEST-OK-IF-YOU-SEE-THIS
 EOF
 
@@ -134,10 +134,10 @@ EOF
 		} else {
 
 			print $client <<"EOF";
-HTTP/1.1 200 OK
-Content-Length: 24
-Connection: close
-
+HTTP/1.1 200 OK\r
+Content-Length: 24\r
+Connection: close\r
+\r
 TEST-OK-IF-YOU-SEE-THIS
 EOF
 		}

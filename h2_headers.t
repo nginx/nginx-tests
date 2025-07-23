@@ -426,7 +426,7 @@ unlike($s->{headers}, qr/aaaaa/, 'well known chars - huffman encoding');
 # response header field with huffman encoding - complete table mod \0, CR, LF
 # first saturate with short-encoded characters (NB: implementation detail)
 
-my $field = pack "C*", ((map { 97 } (1 .. 862)), 1 .. 9, 11, 12, 14 .. 255);
+my $field = pack "C*", ((map { 97 } (1 .. 862)), 9, 32 .. 126, 128 .. 255);
 
 $s = Test::Nginx::HTTP2->new();
 $sid = $s->new_stream({ headers => [
@@ -1288,31 +1288,31 @@ sub http_daemon {
 
 		if ($uri eq '/cookie') {
 
-			my ($cookie, $cookie2) = $headers =~ /Cookie: (.+)/ig;
+			my ($cookie, $cookie2) = $headers =~ /^Cookie: ([\t -~]+)\r\n/igm;
 			$cookie2 = '' unless defined $cookie2;
 
 			my ($cookie_a, $cookie_c) = ('', '');
-			$cookie_a = $1 if $headers =~ /X-Cookie-a: (.+)/i;
-			$cookie_c = $1 if $headers =~ /X-Cookie-c: (.+)/i;
+			$cookie_a = $1 if $headers =~ /^X-Cookie-a: ([\t -~]+)\r\n/im;
+			$cookie_c = $1 if $headers =~ /^X-Cookie-c: ([\t -~]+)\r\n/im;
 
 			print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-X-Sent-Cookie: $cookie
-X-Sent-Cookie2: $cookie2
-X-Sent-Cookie-a: $cookie_a
-X-Sent-Cookie-c: $cookie_c
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+X-Sent-Cookie: $cookie\r
+X-Sent-Cookie2: $cookie2\r
+X-Sent-Cookie-a: $cookie_a\r
+X-Sent-Cookie-c: $cookie_c\r
+\r
 EOF
 
 		} elsif ($uri eq '/set-cookie') {
 
 			print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-Set-Cookie: a=b
-Set-Cookie: c=d
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+Set-Cookie: a=b\r
+Set-Cookie: c=d\r
+\r
 EOF
 
 		}

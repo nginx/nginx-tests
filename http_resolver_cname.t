@@ -146,9 +146,9 @@ like(http_host('cn001.example.net', '/short'), qr/502 Bad/, 'recurse uncached');
 sub http_host {
 	my ($host, $uri, %extra) = @_;
 	return http(<<EOF, %extra);
-GET $uri HTTP/1.0
-Host: $host
-
+GET $uri HTTP/1.0\r
+Host: $host\r
+\r
 EOF
 }
 

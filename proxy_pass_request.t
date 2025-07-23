@@ -78,11 +78,11 @@ sub get {
 	my $cl = length("$body\n");
 
 	http(<<EOF);
-GET $uri HTTP/1.0
-Host: localhost
-X-Header: $header
-Content-Length: $cl
-
+GET $uri HTTP/1.0\r
+Host: localhost\r
+X-Header: $header\r
+Content-Length: $cl\r
+\r
 $body
 EOF
 }
@@ -124,11 +124,11 @@ sub http_daemon {
 		my $body = $r =~ /\x0d\x0a?\x0d\x0a?(.+)/ && $1 || 'none';
 
 		print $client <<"EOF";
-HTTP/1.1 200 OK
-Connection: close
-X-Header: $header
-X-Body: $body
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+X-Header: $header\r
+X-Body: $body\r
+\r
 EOF
 
 		close $client;

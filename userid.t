@@ -272,23 +272,23 @@ sub expires2timegm {
 
 sub uid_set {
 	my ($r) = @_;
-	my ($uid) = $r =~ /X-Set: uid=(.*)\n/m;
+	my ($uid) = $r =~ /^[Xx]-[Ss][Ee][Tt]: uid=([\t -~]*)\r\n/m;
 	return $uid;
 }
 
 sub uid_got {
 	my ($r) = @_;
-	my ($uid) = $r =~ /X-Got: uid=(.*)\n/m;
+	my ($uid) = $r =~ /[Xx]-[Gg][Oo][Tt]: uid=([\t -~]*)\r\n/m;
 	return $uid;
 }
 
 sub send_uid {
 	my ($url, $uid) = @_;
 	return http(<<EOF);
-GET $url HTTP/1.0
-Host: localhost
-Cookie: uid=$uid
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+Cookie: uid=$uid\r
+\r
 EOF
 }
 

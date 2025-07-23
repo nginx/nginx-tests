@@ -71,8 +71,8 @@ $t->stop();
 my $f = $t->read_file('test.log');
 Test::Nginx::log_core('||', $f);
 
-like($f, qr!^/:23:68:$l1:$l1!m, 'log - response length');
-like($f, qr!^/multi:32:77:$l2:$l2!m, 'log - response length - multi packets');
+like($f, qr!^/:23:72:$l1:$l1!m, 'log - response length');
+like($f, qr!^/multi:32:81:$l2:$l2!m, 'log - response length - multi packets');
 
 ###############################################################################
 
@@ -105,10 +105,10 @@ sub http_daemon {
 
 		if ($uri eq '/') {
 			print $client <<"EOF";
-HTTP/1.1 200 OK
-Connection: close
-X-Len: $len
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+X-Len: $len\r
+\r
 EOF
 			print $client "TEST-OK-IF-YOU-SEE-THIS"
 				unless $headers =~ /^HEAD/i;
@@ -116,10 +116,10 @@ EOF
 		} elsif ($uri eq '/multi') {
 
 			print $client <<"EOF";
-HTTP/1.1 200 OK
-Connection: close
-X-Len: $len
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+X-Len: $len\r
+\r
 TEST-OK-IF-YOU-SEE-THIS
 EOF
 

@@ -165,7 +165,7 @@ sub get_ssl_context {
 sub get {
 	my ($host, $port, $ctx) = @_;
 	return http(
-		"GET / HTTP/1.0\nHost: $host\n\n",
+		"GET / HTTP/1.0\r\nHost: $host\r\n\r\n",
 		PeerAddr => '127.0.0.1:' . port($port),
 		SSL => 1,
 		SSL_hostname => $host,

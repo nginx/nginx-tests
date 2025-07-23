@@ -89,9 +89,9 @@ like(http_get('/t4.html'), qr/XbarX/, 'set get in return');
 sub http_get_extra {
 	my ($uri, $extra) = @_;
 	return http(<<EOF);
-GET $uri HTTP/1.0
-$extra
-
+GET $uri HTTP/1.0\r
+$extra\r
+\r
 EOF
 }
 
