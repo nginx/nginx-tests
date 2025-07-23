@@ -68,6 +68,7 @@ http {
             add_header Auth-Server 127.0.0.1;
             add_header Auth-Port   %%PORT_8026%%;
             add_header Auth-Wait   1;
+            add_header Auth-Method none;
             return 204;
         }
     }
@@ -75,7 +76,7 @@ http {
 
 EOF
 
-$t->run_daemon(\&Test::Nginx::SMTP::smtp_test_daemon, port(8026), 1);
+$t->run_daemon(\&Test::Nginx::SMTP::smtp_test_daemon, port(8026), 0);
 $t->run()->plan(7);
 
 $t->waitforsocket('127.0.0.1:' . port(8026));
@@ -143,6 +144,6 @@ $s->read();
 $s->send('AUTH EXTERNAL');
 $s->check(qr/^334 VXNlcm5hbWU6/, 'auth external challenge');
 $s->send(encode_base64('test@example.com', ''));
-$s->check(qr/^4.. /, 'auth external no password');
+$s->authok('auth external');
 
 ###############################################################################
