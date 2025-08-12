@@ -75,10 +75,10 @@ like(http_xff('/', '192.0.2.1'), qr/X-Real-IP: 127.0.0.1/m, 'realip redirect');
 sub http_xff {
 	my ($uri, $xff) = @_;
 	return http(<<EOF);
-GET $uri HTTP/1.0
-Host: localhost
-X-Forwarded-For: $xff
-
+GET $uri HTTP/1.0\r
+Host: localhost\r
+X-Forwarded-For: $xff\r
+\r
 EOF
 }
 

@@ -195,10 +195,10 @@ sub valid {
 		$text = http_get($uri);
 	} else {
 		$text = http(<<EOF);
-GET $uri HTTP/1.0
-Host: $host
-Referer: $referer
-
+GET $uri HTTP/1.0\r
+Host: $host\r
+Referer: $referer\r
+\r
 EOF
 	}
 

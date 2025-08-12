@@ -90,14 +90,14 @@ $t->run()->plan(9);
 
 my ($p, $p1, $p2, $p3) = (port(8080), port(8081), port(8082), port(8083));
 
-is(stream("127.0.0.1:$p")->io("GET /\n"), 'OK', 'passed');
+is(stream("127.0.0.1:$p")->io("GET /\r\n"), 'OK', 'passed');
 
 my $s = stream('127.0.0.1:' . port(8080));
 $s->write("GET");
 
-is(stream("127.0.0.1:$p1")->io("GET /\n"), '', 'rejected');
-is(stream("127.0.0.1:$p2")->io("GET /\n"), 'OK', 'rejected dry run');
-is(stream("127.0.0.1:$p3")->io("GET /\n"), 'OK', 'no limit');
+is(stream("127.0.0.1:$p1")->io("GET /\r\n"), '', 'rejected');
+is(stream("127.0.0.1:$p2")->io("GET /\r\n"), 'OK', 'rejected dry run');
+is(stream("127.0.0.1:$p3")->io("GET /\r\n"), 'OK', 'no limit');
 
 undef $s;
 

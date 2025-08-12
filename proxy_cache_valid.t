@@ -121,11 +121,11 @@ like(http_get('/'), qr/200 OK/, 'error no-cache - not cacheable');
 sub get {
 	my ($url, $extra) = @_;
 	return http(<<EOF);
-GET $url HTTP/1.1
-Host: localhost
-Connection: close
-$extra
-
+GET $url HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+$extra\r
+\r
 EOF
 }
 

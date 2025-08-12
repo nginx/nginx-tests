@@ -101,11 +101,11 @@ sub http_get_length {
 	my ($url, $body) = @_;
 	my $length = length $body;
 	return http(<<EOF);
-GET $url HTTP/1.1
-Host: localhost
-Connection: close
-Content-Length: $length
-
+GET $url HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Content-Length: $length\r
+\r
 $body
 EOF
 }
@@ -114,15 +114,15 @@ sub http_get_chunked {
 	my ($url, $body) = @_;
 	my $length = sprintf("%x", length $body);
 	return http(<<EOF);
-GET $url HTTP/1.1
-Host: localhost
-Connection: close
-Transfer-Encoding: chunked
-
-$length
-$body
-0
-
+GET $url HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Transfer-Encoding: chunked\r
+\r
+$length\r
+$body\r
+0\r
+\r
 EOF
 }
 

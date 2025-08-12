@@ -292,18 +292,18 @@ like(http_host_header('tcp2.example.net', '/tcp2'), qr/X-IP: 127.0.0.1/,
 sub http_host_header {
 	my ($host, $uri, %extra) = @_;
 	return http(<<EOF, %extra);
-GET $uri HTTP/1.0
-Host: $host
-
+GET $uri HTTP/1.0\r
+Host: $host\r
+\r
 EOF
 }
 
 sub http_x_name_header {
 	my ($host, $uri) = @_;
 	return http(<<EOF);
-GET $uri HTTP/1.0
-X-Name: $host
-
+GET $uri HTTP/1.0\r
+X-Name: $host\r
+\r
 EOF
 }
 
