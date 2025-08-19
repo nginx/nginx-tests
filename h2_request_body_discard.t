@@ -257,11 +257,11 @@ like(http2_get_body_incomplete_nolen('/unbuf', 10000, '0123456789'),
 
 # error_page 400 after proxy with request buffering disabled
 
-like(http2_get_body_custom('/unbuf2', 1, '', sleep => 0.1),
+like(http2_get_body_custom('/unbuf2', 1, '', sleep => 0.2),
 	qr/status: 400.*backend body:::/s, 'unbuf too short');
-like(http2_get_body_custom('/unbuf2', 1, '01', sleep => 0.1),
+like(http2_get_body_custom('/unbuf2', 1, '01', sleep => 0.2),
 	qr/status: 400.*backend body:::/s, 'unbuf too long');
-like(http2_get_body_custom('/unbuf2', 1, '01', sleep => 0.1, more => 1),
+like(http2_get_body_custom('/unbuf2', 1, '01', sleep => 0.2, more => 1),
 	qr/status: 400.*backend body:::/s, 'unbuf too long more');
 
 # error_page 413 and $content_length

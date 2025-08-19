@@ -257,7 +257,7 @@ like(http3_get_body_custom('/proxy', 1, '01', more => 1),
 
 like(http3_get('/unbuf'),
 	qr/status: 502.*backend body:::/s, 'unbuf proxy');
-like(http3_get_body_custom('/unbuf', 10, '0123456789', sleep => 0.1),
+like(http3_get_body_custom('/unbuf', 10, '0123456789', sleep => 0.2),
 	qr/status: 502.*backend body:::/s, 'unbuf proxy small');
 like(http3_get_body_incomplete('/unbuf', 10000, '0123456789'),
 	qr/status: 502.*backend body:::/s, 'unbuf proxy long');
@@ -270,11 +270,11 @@ like(http3_get_body_incomplete_nolen('/unbuf', 10000, '0123456789'),
 
 # error_page 400 after proxy with request buffering disabled
 
-like(http3_get_body_custom('/unbuf2', 1, '', sleep => 0.1),
+like(http3_get_body_custom('/unbuf2', 1, '', sleep => 0.2),
 	qr/status: 400.*backend body:::/s, 'unbuf too short');
-like(http3_get_body_custom('/unbuf2', 1, '01', sleep => 0.1),
+like(http3_get_body_custom('/unbuf2', 1, '01', sleep => 0.2),
 	qr/status: 400.*backend body:::/s, 'unbuf too long');
-like(http3_get_body_custom('/unbuf2', 1, '01', sleep => 0.1, more => 1),
+like(http3_get_body_custom('/unbuf2', 1, '01', sleep => 0.2, more => 1),
 	qr/status: 400.*backend body:::/s, 'unbuf too long more');
 
 # error_page 413 and $content_length
@@ -332,12 +332,12 @@ sub http3_get_body_nolen {
 	my $sid = $s->new_stream({ path => $uri, body_more => 1 });
 
 	if (defined $body2) {
-		select undef, undef, undef, 0.1;
+		select undef, undef, undef, 0.2;
 		$s->h3_body($body, $sid, { body_more => 1 });
-		select undef, undef, undef, 0.1;
+		select undef, undef, undef, 0.2;
 		$s->h3_body($body2, $sid);
 	} else {
-		select undef, undef, undef, 0.1;
+		select undef, undef, undef, 0.2;
 		$s->h3_body($body, $sid);
 	}
 

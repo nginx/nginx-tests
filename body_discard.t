@@ -349,7 +349,7 @@ like(http(
 	'POST /unbuf HTTP/1.0' . CRLF .
 	'Content-Length: 10' . CRLF . CRLF .
 	'0',
-	sleep => 0.1,
+	sleep => 0.2,
 	body =>
 	'123456789'
 ), qr/ 502 .*backend body:::/s, 'unbuf proxy small');
@@ -365,7 +365,7 @@ like(http(
 	'Host: localhost' . CRLF .
 	'Connection: close' . CRLF .
 	'Transfer-Encoding: chunked' . CRLF . CRLF,
-	sleep => 0.1,
+	sleep => 0.2,
 	body =>
 	'a' . CRLF .
 	'0123456789' . CRLF .
@@ -379,7 +379,7 @@ like(http(
 	'Transfer-Encoding: chunked' . CRLF . CRLF .
 	'1' . CRLF .
 	'X' . CRLF,
-	sleep => 0.1,
+	sleep => 0.2,
 	body =>
 	'9' . CRLF .
 	'123456789' . CRLF .
