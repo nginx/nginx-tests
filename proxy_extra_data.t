@@ -150,50 +150,50 @@ sub http_daemon {
 		$head = ($headers =~ /^HEAD/);
 
 		if ($uri eq '/') {
-			$c->print("HTTP/1.1 200 OK\n");
-			$c->print("Content-Type: text/html\n");
-			$c->print("Content-Length: 8\n\n");
+			$c->print("HTTP/1.1 200 OK\r\n");
+			$c->print("Content-Type: text/html\r\n");
+			$c->print("Content-Length: 8\r\n\r\n");
 			$c->print("SEE-THIS-BUT-NOT-THIS\n");
 
 		} elsif ($uri eq '/zero') {
-			$c->print("HTTP/1.1 200 OK\n");
-			$c->print("Content-Type: text/html\n");
-			$c->print("Content-Length: 0\n\n");
+			$c->print("HTTP/1.1 200 OK\r\n");
+			$c->print("Content-Type: text/html\r\n");
+			$c->print("Content-Length: 0\r\n\r\n");
 			$c->print("NOT-THIS\n");
 
 		} elsif ($uri eq '/short') {
-			$c->print("HTTP/1.1 200 OK\n");
-			$c->print("Content-Type: text/html\n");
-			$c->print("Content-Length: 100\n\n");
+			$c->print("HTTP/1.1 200 OK\r\n");
+			$c->print("Content-Type: text/html\r\n");
+			$c->print("Content-Length: 100\r\n\r\n");
 			$c->print("SEE-THIS-TOO-SHORT-RESPONSE\n");
 
 		} elsif ($uri eq '/empty') {
-			$c->print("HTTP/1.1 200 OK\n");
-			$c->print("Content-Type: text/html\n");
-			$c->print("Content-Length: 100\n\n");
+			$c->print("HTTP/1.1 200 OK\r\n");
+			$c->print("Content-Type: text/html\r\n");
+			$c->print("Content-Length: 100\r\n\r\n");
 
 		} elsif ($uri eq '/head/empty') {
-			$c->print("HTTP/1.1 200 OK\n");
-			$c->print("Content-Type: text/html\n");
-			$c->print("Content-Length: 8\n\n");
+			$c->print("HTTP/1.1 200 OK\r\n");
+			$c->print("Content-Type: text/html\r\n");
+			$c->print("Content-Length: 8\r\n\r\n");
 			$c->print("SEE-THIS") unless $head;
 
 		} elsif ($uri eq '/head/matching') {
-			$c->print("HTTP/1.1 200 OK\n");
-			$c->print("Content-Type: text/html\n");
-			$c->print("Content-Length: 8\n\n");
+			$c->print("HTTP/1.1 200 OK\r\n");
+			$c->print("Content-Type: text/html\r\n");
+			$c->print("Content-Length: 8\r\n\r\n");
 			$c->print("SEE-THIS");
 
 		} elsif ($uri eq '/head/extra') {
-			$c->print("HTTP/1.1 200 OK\n");
-			$c->print("Content-Type: text/html\n");
-			$c->print("Content-Length: 8\n\n");
+			$c->print("HTTP/1.1 200 OK\r\n");
+			$c->print("Content-Type: text/html\r\n");
+			$c->print("Content-Length: 8\r\n\r\n");
 			$c->print("SEE-THIS-BUT-NOT-THIS\n");
 
 		} elsif ($uri eq '/head/short') {
-			$c->print("HTTP/1.1 200 OK\n");
-			$c->print("Content-Type: text/html\n");
-			$c->print("Content-Length: 100\n\n");
+			$c->print("HTTP/1.1 200 OK\r\n");
+			$c->print("Content-Type: text/html\r\n");
+			$c->print("Content-Length: 100\r\n\r\n");
 			$c->print("SEE-THIS\n");
 		}
 

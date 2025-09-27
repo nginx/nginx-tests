@@ -78,8 +78,8 @@ sub scgi_daemon {
 		next if $@;
 
 		$request->connection()->print(<<EOF);
-Content-Type: text/html
-
+Content-Type: text/html\r
+\r
 SEE-THIS-1234567890-1234567890
 EOF
 	}

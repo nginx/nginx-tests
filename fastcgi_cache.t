@@ -92,9 +92,9 @@ sub fastcgi_daemon {
 		}
 
 		print <<EOF;
-Location: http://localhost/redirect
-Content-Type: text/html
-
+Location: http://localhost/redirect\r
+Content-Type: text/html\r
+\r
 SEE-THIS
 $count
 EOF

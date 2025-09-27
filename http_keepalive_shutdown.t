@@ -58,12 +58,12 @@ $t->run();
 # signaling on graceful shutdown to client that keepalive connection is closing
 
 my $s = http(<<EOF, start => 1);
-HEAD /test.html HTTP/1.1
-Host: localhost
-
-HEAD /test.html HTTP/1.1
-Host: localhost
-
+HEAD /test.html HTTP/1.1\r
+Host: localhost\r
+\r
+HEAD /test.html HTTP/1.1\r
+Host: localhost\r
+\r
 EOF
 
 select undef, undef, undef, 0.1;
