@@ -118,9 +118,9 @@ like(http_gzip_request('/empty.html'),
 # see 573ec98d2 in nginx for detailed explanation
 
 my $s = http(<<EOF, start => 1);
-HEAD /big.html?e=1 HTTP/1.1
-Host: localhost
-
+HEAD /big.html?e=1 HTTP/1.1\r
+Host: localhost\r
+\r
 EOF
 
 my $r = http_get('/t.html', socket => $s);
@@ -133,11 +133,11 @@ like($r, qr/SEE-THIS/, 'non-cacheable head - second');
 sub http_get_range {
 	my ($url, $extra) = @_;
 	return http(<<EOF);
-GET $url HTTP/1.1
-Host: localhost
-Connection: close
-$extra
-
+GET $url HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+$extra\r
+\r
 EOF
 }
 

@@ -114,20 +114,20 @@ unlike($r, qr/X-Var/, 'inheritance');
 sub get {
 	my ($uri) = @_;
 	http(<<EOF);
-GET $uri HTTP/1.1
-Host: localhost
-Connection: close
-
+GET $uri HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+\r
 EOF
 }
 
 sub head {
 	my ($uri) = @_;
 	http(<<EOF);
-HEAD $uri HTTP/1.1
-Host: localhost
-Connection: close
-
+HEAD $uri HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+\r
 EOF
 }
 

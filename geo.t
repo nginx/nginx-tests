@@ -240,10 +240,10 @@ like(http_xff('192.0.2.1, 127.0.0.1'), qr/^X-XFR: test/m,
 sub http_xff {
 	my ($xff) = @_;
 	return http(<<EOF);
-GET /1 HTTP/1.0
-Host: localhost
-X-Forwarded-For: $xff
-
+GET /1 HTTP/1.0\r
+Host: localhost\r
+X-Forwarded-For: $xff\r
+\r
 EOF
 }
 

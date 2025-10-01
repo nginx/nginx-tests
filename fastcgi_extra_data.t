@@ -141,42 +141,42 @@ sub fastcgi_daemon {
 		$head = $ENV{REQUEST_METHOD} eq 'HEAD';
 
 		if ($uri eq '/') {
-			print "Content-Type: text/html\n";
-			print "Content-Length: 8\n\n";
+			print "Content-Type: text/html\r\n";
+			print "Content-Length: 8\r\n\r\n";
 			print "SEE-THIS-BUT-NOT-THIS\n";
 
 		} elsif ($uri eq '/zero') {
-			print "Content-Type: text/html\n";
-			print "Content-Length: 0\n\n";
+			print "Content-Type: text/html\r\n";
+			print "Content-Length: 0\r\n\r\n";
 			print "NOT-THIS\n";
 
 		} elsif ($uri eq '/short') {
-			print "Content-Type: text/html\n";
-			print "Content-Length: 100\n\n";
+			print "Content-Type: text/html\r\n";
+			print "Content-Length: 100\r\n\r\n";
 			print "SEE-THIS-TOO-SHORT-RESPONSE\n";
 
 		} elsif ($uri eq '/empty') {
-			print "Content-Type: text/html\n";
-			print "Content-Length: 100\n\n";
+			print "Content-Type: text/html\r\n";
+			print "Content-Length: 100\r\n\r\n";
 
 		} elsif ($uri eq '/head/empty') {
-			print "Content-Type: text/html\n";
-			print "Content-Length: 8\n\n";
+			print "Content-Type: text/html\r\n";
+			print "Content-Length: 8\r\n\r\n";
 			print "SEE-THIS" unless $head;
 
 		} elsif ($uri eq '/head/matching') {
-			print "Content-Type: text/html\n";
-			print "Content-Length: 8\n\n";
+			print "Content-Type: text/html\r\n";
+			print "Content-Length: 8\r\n\r\n";
 			print "SEE-THIS";
 
 		} elsif ($uri eq '/head/extra') {
-			print "Content-Type: text/html\n";
-			print "Content-Length: 8\n\n";
+			print "Content-Type: text/html\r\n";
+			print "Content-Length: 8\r\n\r\n";
 			print "SEE-THIS-BUT-NOT-THIS\n";
 
 		} elsif ($uri eq '/head/short') {
-			print "Content-Type: text/html\n";
-			print "Content-Length: 100\n\n";
+			print "Content-Type: text/html\r\n";
+			print "Content-Length: 100\r\n\r\n";
 			print "SEE-THIS\n";
 		}
 	}

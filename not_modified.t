@@ -96,30 +96,30 @@ like(http_get_im('/nx', '"foo"'), qr/ 404 /, 'if-match ignored with 404');
 sub http_get_ims {
 	my ($url, $ims) = @_;
 	return http(<<EOF);
-GET $url HTTP/1.0
-Host: localhost
-If-Modified-Since: $ims
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+If-Modified-Since: $ims\r
+\r
 EOF
 }
 
 sub http_get_inm {
 	my ($url, $inm) = @_;
 	return http(<<EOF);
-GET $url HTTP/1.0
-Host: localhost
-If-None-Match: $inm
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+If-None-Match: $inm\r
+\r
 EOF
 }
 
 sub http_get_im {
 	my ($url, $inm) = @_;
 	return http(<<EOF);
-GET $url HTTP/1.0
-Host: localhost
-If-Match: $inm
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+If-Match: $inm\r
+\r
 EOF
 }
 

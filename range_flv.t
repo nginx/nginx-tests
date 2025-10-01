@@ -81,11 +81,11 @@ like($t1, qr/^FLV.{10}X010XXXXXX(X01[1-7]XXXXXX){7}X018XXX$/m,
 sub http_get_range {
 	my ($url, $extra) = @_;
 	return http(<<EOF);
-GET $url HTTP/1.1
-Host: localhost
-Connection: close
-$extra
-
+GET $url HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+$extra\r
+\r
 EOF
 }
 

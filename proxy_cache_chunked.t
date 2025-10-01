@@ -83,12 +83,12 @@ sub http_chunked_daemon {
 			last if (/^\x0d?\x0a?$/);
 		}
 
-		print $client <<'EOF';
-HTTP/1.1 200 OK
-X-Test: SEE-THIS
-Connection: close
-Transfer-Encoding: chunked
-
+		print $client <<"EOF";
+HTTP/1.1 200 OK\r
+X-Test: SEE-THIS\r
+Connection: close\r
+Transfer-Encoding: chunked\r
+\r
 EOF
 		print $client "85" . CRLF;
 		select undef, undef, undef, 0.1;

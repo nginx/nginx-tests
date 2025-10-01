@@ -63,25 +63,25 @@ like(http_get_length('/', ''), qr/X-Body: /, 'scgi empty body');
 like(http_get_length('/', 'foobar'), qr/X-Body: foobar/, 'scgi body');
 
 like(http(<<EOF), qr/X-Body: foobar/, 'scgi chunked');
-GET / HTTP/1.1
-Host: localhost
-Connection: close
-Transfer-Encoding: chunked
-
-6
-foobar
-0
-
+GET / HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Transfer-Encoding: chunked\r
+\r
+6\r
+foobar\r
+0\r
+\r
 EOF
 
 like(http(<<EOF), qr/X-Body: /, 'scgi empty chunked');
-GET / HTTP/1.1
-Host: localhost
-Connection: close
-Transfer-Encoding: chunked
-
-0
-
+GET / HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Transfer-Encoding: chunked\r
+\r
+0\r
+\r
 EOF
 
 ###############################################################################
@@ -90,11 +90,11 @@ sub http_get_length {
 	my ($url, $body) = @_;
 	my $length = length $body;
 	return http(<<EOF);
-GET $url HTTP/1.1
-Host: localhost
-Connection: close
-Content-Length: $length
-
+GET $url HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Content-Length: $length\r
+\r
 $body
 EOF
 }

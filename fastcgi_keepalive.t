@@ -167,9 +167,9 @@ sub fastcgi_test_daemon {
 
 			# respond
 			fastcgi_respond($h, <<EOF);
-Location: http://localhost/redirect
-Content-Type: text/html
-
+Location: http://localhost/redirect\r
+Content-Type: text/html\r
+\r
 SEE-THIS
 request: $rcount
 connection: $ccount

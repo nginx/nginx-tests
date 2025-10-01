@@ -95,12 +95,12 @@ sub http_100_request {
 	my ($url, $version, $value) = @_;
 	$value = '100-continue' unless defined $value;
 	http(<<EOF);
-POST $url HTTP/$version
-Host: localhost
-Expect: $value
-Content-Length: 0
-Connection: close
-
+POST $url HTTP/$version\r
+Host: localhost\r
+Expect: $value\r
+Content-Length: 0\r
+Connection: close\r
+\r
 EOF
 }
 

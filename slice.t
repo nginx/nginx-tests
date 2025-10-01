@@ -266,7 +266,7 @@ like($r, qr/^6789abcdef$/m, 'last bytes - correct content');
 
 # respect not modified and range filters
 
-my ($etag) = http_get('/t') =~ /ETag: (.*)/;
+my ($etag) = http_get('/t') =~ /^ETag: ([ -~]*)\r\n/im;
 
 like(get('/cache/t?inm', "If-None-Match: $etag"), qr/ 304 /, 'inm');
 like(get('/cache/t?inm', "If-None-Match: bad"), qr/ 200 /, 'inm bad');
@@ -274,28 +274,28 @@ like(get('/cache/t?inm', "If-None-Match: bad"), qr/ 200 /, 'inm bad');
 like(get('/cache/t?im', "If-Match: $etag"), qr/ 200 /, 'im');
 like(get('/cache/t?im', "If-Match: bad"), qr/ 412 /, 'im bad');
 
-$r = get('/cache/t?if', "Range: bytes=3-4\nIf-Range: $etag");
+$r = get('/cache/t?if', "Range: bytes=3-4\r\nIf-Range: $etag");
 like($r, qr/ 206 /, 'if-range - 206 partial reply');
 like($r, qr/^34$/m, 'if-range - correct content');
 
 # respect Last-Modified from non-cacheable response with If-Range
 
-my ($lm) = http_get('/t') =~ /Last-Modified: (.*)/;
-$r = get('/proxy/t', "Range: bytes=3-4\nIf-Range: $lm");
+my ($lm) = http_get('/t') =~ /^Last-Modified: ([ -~]*)\r\n/im;
+$r = get('/proxy/t', "Range: bytes=3-4\r\nIf-Range: $lm");
 like($r, qr/ 206 /, 'if-range last-modified proxy - 206 partial reply');
 like($r, qr/^34$/m, 'if-range last-modified proxy - correct content');
 
-$r = get('/cache/t?ifb', "Range: bytes=3-4\nIf-Range: bad");
+$r = get('/cache/t?ifb', "Range: bytes=3-4\r\nIf-Range: bad");
 like($r, qr/ 200 /, 'if-range bad - 200 ok');
 like($r, qr/^0123456789abcdef$/m, 'if-range bad - correct content');
 
 # first slice isn't known
 
-$r = get('/cache/t?skip', "Range: bytes=6-7\nIf-Range: $etag");
+$r = get('/cache/t?skip', "Range: bytes=6-7\r\nIf-Range: $etag");
 like($r, qr/ 206 /, 'if-range skip slice - 206 partial reply');
 like($r, qr/^67$/m, 'if-range skip slice - correct content');
 
-$r = get('/cache/t?skip', "Range: bytes=6-7\nIf-Range: $etag");
+$r = get('/cache/t?skip', "Range: bytes=6-7\r\nIf-Range: $etag");
 like($r, qr/ 206 /, 'if-range skip slice - cached - 206 partial reply');
 like($r, qr/^67$/m, 'if-range skip slice - cached - correct content');
 like($r, qr/HIT/, 'if-range skip bytes - cached - cache status');
@@ -347,11 +347,11 @@ ok(!get('/proxy/bad_range2', ''), 'bad range - unexpected range 2');
 sub get {
 	my ($url, $extra) = @_;
 	return http(<<EOF);
-GET $url HTTP/1.1
-Host: localhost
-Connection: close
-$extra
-
+GET $url HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+$extra\r
+\r
 EOF
 }
 
@@ -371,10 +371,10 @@ sub fastcgi_daemon {
 		$stop = $len - 1 if $stop > $len - 1;
 
 		print <<EOF;
-Status: 206
-Content-Type: text/html
-Content-Range: bytes $start-$stop/$len
-
+Status: 206\r
+Content-Type: text/html\r
+Content-Range: bytes $start-$stop/$len\r
+\r
 EOF
 
 		print $body;

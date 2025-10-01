@@ -135,28 +135,28 @@ like(http_post_big('/'), qr/SEE-THIS/, 'uwsgi big post');
 sub http_get_headers {
 	my ($url, %extra) = @_;
 	return http(<<EOF, %extra);
-GET $url HTTP/1.0
-Host: localhost
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-X-Blah: ignored header
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+X-Blah: ignored header\r
+\r
 EOF
 }
 

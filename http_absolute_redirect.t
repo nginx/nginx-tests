@@ -182,9 +182,9 @@ like(get('off', '/auto%20%22%23%25%3C%3E%3F%5C%5E%60%7B%7C%7D'),
 sub get {
 	my ($host, $uri) = @_;
 	http(<<EOF);
-GET $uri HTTP/1.0
-Host: $host
-
+GET $uri HTTP/1.0\r
+Host: $host\r
+\r
 EOF
 }
 

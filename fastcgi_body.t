@@ -60,25 +60,25 @@ like(http_get_length('/', 'foobar'), qr/X-Body: foobar_eos\x0d?$/ms,
 	'fastcgi body');
 
 like(http(<<EOF), qr/X-Body: foobar_eos\x0d?$/ms, 'fastcgi chunked');
-GET / HTTP/1.1
-Host: localhost
-Connection: close
-Transfer-Encoding: chunked
-
-6
-foobar
-0
-
+GET / HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Transfer-Encoding: chunked\r
+\r
+6\r
+foobar\r
+0\r
+\r
 EOF
 
 like(http(<<EOF), qr/X-Body: _eos\x0d?$/ms, 'fastcgi empty chunked');
-GET / HTTP/1.1
-Host: localhost
-Connection: close
-Transfer-Encoding: chunked
-
-0
-
+GET / HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Transfer-Encoding: chunked\r
+\r
+0\r
+\r
 EOF
 
 ###############################################################################
@@ -87,11 +87,11 @@ sub http_get_length {
 	my ($url, $body) = @_;
 	my $length = length $body;
 	return http(<<EOF);
-GET $url HTTP/1.1
-Host: localhost
-Connection: close
-Content-Length: $length
-
+GET $url HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Content-Length: $length\r
+\r
 $body
 EOF
 }
@@ -171,10 +171,10 @@ sub fastcgi_daemon {
 
 		# respond
 		fastcgi_respond($client, $version, $id, <<EOF);
-Location: http://localhost/redirect
-Content-Type: text/html
-X-Body: $body
-
+Location: http://localhost/redirect\r
+Content-Type: text/html\r
+X-Body: $body\r
+\r
 SEE-THIS
 EOF
 	}

@@ -249,9 +249,9 @@ like(get_body('/body', '0123456789', 20, 5), qr/X-Body: (0123456789){100}/,
 
 $s = get_ssl_socket(8085);
 my $req = <<EOF;
-GET / HTTP/1.1
-Host: localhost
-
+GET / HTTP/1.1\r
+Host: localhost\r
+\r
 EOF
 
 $req x= 1000;

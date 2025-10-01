@@ -160,11 +160,11 @@ is($frame->{headers}->{'x-another'}, 'bar', 'h3 trailer 2');
 sub get {
 	my ($uri) = @_;
 	http(<<EOF);
-GET $uri HTTP/1.1
-Host: localhost
-Connection: te, close
-TE: trailers
-
+GET $uri HTTP/1.1\r
+Host: localhost\r
+Connection: te, close\r
+TE: trailers\r
+\r
 EOF
 }
 

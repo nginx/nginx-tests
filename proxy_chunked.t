@@ -92,16 +92,16 @@ sub http_chunked_daemon {
 			last if (/^\x0d?\x0a?$/);
 		}
 
-		print $client <<'EOF';
-HTTP/1.1 200 OK
-Connection: close
-Transfer-Encoding: chunked
-
-9
+		print $client <<"EOF";
+HTTP/1.1 200 OK\r
+Connection: close\r
+Transfer-Encoding: chunked\r
+\r
+9\r
 SEE-THIS
-
-0
-
+\r
+0\r
+\r
 EOF
 
 		close $client;

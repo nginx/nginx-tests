@@ -122,11 +122,11 @@ unlike(http_get('/passdate/no/'), qr/Server/, 'proxy_pass_header no server');
 sub http_get_ims {
 	my ($url) = @_;
 	return http(<<EOF);
-GET $url HTTP/1.0
-Host: localhost
-Connection: close
-If-Modified-Since: blah
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+Connection: close\r
+If-Modified-Since: blah\r
+\r
 EOF
 }
 

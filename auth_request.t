@@ -223,10 +223,10 @@ SKIP: {
 sub http_get_auth {
 	my ($url, %extra) = @_;
 	return http(<<EOF, %extra);
-GET $url HTTP/1.0
-Host: localhost
-Authorization: Basic dXNlcjpzZWNyZXQ=
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+Authorization: Basic dXNlcjpzZWNyZXQ=\r
+\r
 EOF
 }
 
@@ -263,8 +263,8 @@ sub fastcgi_daemon {
 
 	while ($request->Accept() >= 0) {
 		print <<EOF;
-Content-Type: text/html
-
+Content-Type: text/html\r
+\r
 INVISIBLE
 EOF
 	}

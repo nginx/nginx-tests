@@ -220,11 +220,11 @@ sub get_body {
 		or die "Can't create listening socket: $!\n";
 
 	my $r = <<EOF;
-GET $url HTTP/1.1
-Host: localhost
-Connection: close
-Content-Length: $length
-
+GET $url HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+Content-Length: $length\r
+\r
 EOF
 
 	if (defined $body) {
@@ -309,10 +309,10 @@ EOF
 			alarm(5);
 
 			fastcgi_respond($client, $version, $id, <<EOF);
-Status: 200 OK
-Connection: close
-X-Port: $port
-
+Status: 200 OK\r
+Connection: close\r
+X-Port: $port\r
+\r
 OK
 EOF
 
@@ -358,10 +358,10 @@ sub fastcgi_daemon {
 		}
 
 		print <<EOF;
-Location: http://localhost/redirect
-Content-Type: text/html
-X-Body: $body
-
+Location: http://localhost/redirect\r
+Content-Type: text/html\r
+X-Body: $body\r
+\r
 SEE-THIS
 $count
 EOF

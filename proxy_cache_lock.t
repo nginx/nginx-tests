@@ -152,10 +152,10 @@ sub http_fake_daemon {
 
 		$num++;
 		print $client <<"EOF";
-HTTP/1.1 200 OK
-Cache-Control: max-age=300
-Connection: close
-
+HTTP/1.1 200 OK\r
+Cache-Control: max-age=300\r
+Connection: close\r
+\r
 request $num
 EOF
 	}

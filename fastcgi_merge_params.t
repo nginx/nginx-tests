@@ -100,12 +100,12 @@ like(http_get_ims('/custom/'), qr/blah=custom;/,
 sub http_get_ims {
 	my ($url) = @_;
 	return http(<<EOF);
-GET $url HTTP/1.0
-Host: localhost
-Connection: close
-If-Modified-Since: blah
-If-Unmodified-Since: blah
-
+GET $url HTTP/1.0\r
+Host: localhost\r
+Connection: close\r
+If-Modified-Since: blah\r
+If-Unmodified-Since: blah\r
+\r
 EOF
 }
 
@@ -125,9 +125,9 @@ sub fastcgi_daemon {
 		my $blah = $ENV{HTTP_X_BLAH} || '';
 
 		print <<EOF;
-Location: http://localhost/redirect
-Content-Type: text/html
-
+Location: http://localhost/redirect\r
+Content-Type: text/html\r
+\r
 ims=$ims;iums=$iums;blah=$blah;
 EOF
 	}

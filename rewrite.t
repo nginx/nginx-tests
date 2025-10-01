@@ -174,10 +174,10 @@ like(http_get('/error404return405'), qr!HTTP/1.1 405!, 'error 404 return 405');
 # to make problem clear
 
 my $r = http(<<EOF);
-GET /error405return204 HTTP/1.1
-Host: localhost
-Connection: close
-
+GET /error405return204 HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+\r
 EOF
 
 like($r, qr/HTTP\/1.1 405.*(Content-Length|\x0d\0a0\x0d\x0a)/ms,

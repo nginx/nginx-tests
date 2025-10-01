@@ -115,9 +115,9 @@ like(http_get('/proxy?xar=@named'),
 sub http_post {
 	my ($url) = @_;
 	http(<<EOF);
-POST $url HTTP/1.0
-Host: localhost
-
+POST $url HTTP/1.0\r
+Host: localhost\r
+\r
 EOF
 }
 

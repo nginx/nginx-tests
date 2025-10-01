@@ -118,7 +118,7 @@ like(get('virtual2', 8082), qr/unrecognized name/, 'virtual 2 rejected');
 sub get {
 	my ($host, $port) = @_;
 	my $r = http(
-		"GET / HTTP/1.0\nHost: " . ($host || 'localhost') . "\n\n",
+		"GET / HTTP/1.0\r\nHost: " . ($host || 'localhost') . "\r\n\r\n",
 		PeerAddr => '127.0.0.1:' . port($port),
 		SSL => 1,
 		SSL_hostname => $host

@@ -169,11 +169,11 @@ sub update_name {
 	$name->{ERROR} = '' unless $name->{ERROR};
 
 	my $req =<<EOF;
-GET / HTTP/1.0
-Host: localhost
-X-A: $name->{A}
-X-ERROR: $name->{ERROR}
-
+GET / HTTP/1.1\r
+Host: localhost\r
+X-A: $name->{A}\r
+X-ERROR: $name->{ERROR}\r
+\r
 EOF
 
 	my ($gen) = http($req, socket => sock()) =~ /X-Gen: (\d+)/;
@@ -307,26 +307,29 @@ sub process_name {
 	my $uri = '';
 	my %h;
 
+	die "Bad count\n" unless $cnt =~ /\A[ -~]+\z/;
+
 	while (<$client>) {
 		$headers .= $_;
 		last if (/^\x0d?\x0a?$/);
 	}
 	return 1 if $headers eq '';
 
-	$uri = $1 if $headers =~ /^\S+\s+([^ ]+)\s+HTTP/i;
-	return 1 if $uri eq '';
+	$uri = $1 if $headers =~ /\A[A-Z]+ ([!-~\x80-\xFF]+) HTTP\/1\.[01]\r\n/i;
+	die "Bad request line\n" if $uri eq '';
 
-	$headers =~ /X-A: (.*)$/m;
+	$headers =~ /^X-A: ([ -~]*)\r?$/m;
 	map { push @{$h{A}}, $_ } split(/ /, $1);
-	$headers =~ /X-ERROR: (.*)$/m;
+	$headers =~ /^X-ERROR: ([ -~]*)\r?$/m;
 	$h{ERROR} = $1;
 
 	Test::Nginx::log_core('||', "$port: response, 200");
 	print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-X-Gen: $cnt
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+Content-Length: 3\r
+X-Gen: $cnt\r
+\r
 OK
 EOF
 

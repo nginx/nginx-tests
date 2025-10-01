@@ -50,23 +50,23 @@ EOF
 ###############################################################################
 
 like(http(<<EOF), qr/405 Not Allowed(?!.*200 OK)/s, 'trace');
-TRACE / HTTP/1.1
-Host: localhost
-
-GET / HTTP/1.1
-Host: localhost
-Connection: close
-
+TRACE / HTTP/1.1\r
+Host: localhost\r
+\r
+GET / HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+\r
 EOF
 
 like(http(<<EOF), qr/405 Not Allowed(?!.*200 OK)/s, 'connect');
-CONNECT / HTTP/1.1
-Host: localhost
-
-GET / HTTP/1.1
-Host: localhost
-Connection: close
-
+CONNECT / HTTP/1.1\r
+Host: localhost\r
+\r
+GET / HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+\r
 EOF
 
 ###############################################################################

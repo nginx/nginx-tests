@@ -167,10 +167,10 @@ sub http_daemon {
 		$headers = encode_base64($headers, "");
 
 		print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-X-Headers: $headers
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+X-Headers: $headers\r
+\r
 EOF
 
 	}

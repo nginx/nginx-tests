@@ -176,10 +176,10 @@ sub get {
 sub http_xff {
 	my ($uri, $xff) = @_;
 	return http(<<EOF);
-GET $uri HTTP/1.0
-Host: localhost
-X-Forwarded-For: $xff
-
+GET $uri HTTP/1.0\r
+Host: localhost\r
+X-Forwarded-For: $xff\r
+\r
 EOF
 }
 
@@ -209,10 +209,10 @@ sub http_daemon {
 		$uri = $1 if $headers =~ /^\S+\s+([^ ]+)\s+HTTP/i;
 
 		if ($uri eq '/') {
-			print $client <<'EOF';
-HTTP/1.1 200 OK
-Connection: close
-
+			print $client <<"EOF";
+HTTP/1.1 200 OK\r
+Connection: close\r
+\r
 EOF
 			print $client "TEST-OK-IF-YOU-SEE-THIS"
 				unless $headers =~ /^HEAD/i;
@@ -220,9 +220,9 @@ EOF
 		} elsif ($uri eq '/multi') {
 
 			print $client <<"EOF";
-HTTP/1.1 200 OK
-Connection: close
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+\r
 TEST-OK-IF-YOU-SEE-THIS
 EOF
 
@@ -233,9 +233,9 @@ EOF
 			sleep 3;
 
 			print $client <<"EOF";
-HTTP/1.1 200 OK
-Connection: close
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+\r
 EOF
 
 		} elsif ($uri eq '/bad') {
@@ -247,9 +247,9 @@ EOF
 			}
 
 			print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+\r
 SEE-THIS-AND-THIS
 EOF
 
@@ -257,18 +257,18 @@ EOF
 			select undef, undef, undef, 1.1;
 
 			print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+\r
 SEE-THIS-AND-THIS;
 EOF
 
 		} elsif ($uri eq '/body') {
 
 			print $client <<EOF;
-HTTP/1.1 200 OK
-Connection: close
-
+HTTP/1.1 200 OK\r
+Connection: close\r
+\r
 SEE-THIS-
 EOF
 
@@ -278,9 +278,9 @@ EOF
 		} else {
 
 			print $client <<"EOF";
-HTTP/1.1 404 Not Found
-Connection: close
-
+HTTP/1.1 404 Not Found\r
+Connection: close\r
+\r
 Oops, '$uri' not found
 EOF
 		}
