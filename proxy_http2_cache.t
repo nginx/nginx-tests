@@ -24,7 +24,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http rewrite http_v2 proxy cache/)
-	->has(qw/upstream_keepalive/)->plan(2);
+	->has(qw/upstream_keepalive/)->plan(3);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -47,7 +47,7 @@ http {
 
         location / {
             proxy_pass http://127.0.0.1:8081;
-            proxy_http_version 2.0;
+            proxy_http_version 2;
             proxy_request_buffering off;
             proxy_set_header TE "trailers";
             proxy_pass_trailers on;
@@ -84,17 +84,11 @@ $frames = $f->{http_end}();
 ($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
 like($frame->{headers}{'x-cache-status'}, qr/MISS/, 'cache test - MISS on first request');
 
-# Test cached response - second request should be HIT
+# Second request - should be HIT from cache
 
-undef $f;
-$f = proxy_http2();
-
-$frames = $f->{http_start}('/');
+$frames = $f->{request}('/');
 ($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
-$f->{data}('Hello');
-$frames = $f->{http_end}();
-($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
-like($frame->{headers}{'x-cache-status'}, qr/HIT/, 'cache test - HIT on cached request');
+like($frame->{headers}{'x-cache-status'}, qr/HIT/, 'cache test - HIT on second request');
 
 ###############################################################################
 
@@ -157,20 +151,12 @@ sub proxy_http2 {
 	$f->{http_end} = sub {
 		my (%extra) = @_;
 
-		# Determine cache status based on request count
-		my $cache_status = 'MISS';
-		if ($n > 1) {
-			$cache_status = 'HIT';
-		}
-
 		my $h = [
 			{ name => ':status', value => '200',
 				mode => $extra{mode} || 0 },
 			{ name => 'content-type', value => 'text/plain',
 				mode => $extra{mode} || 1, huff => 1 },
 			{ name => 'x-connection', value => $n,
-				mode => 2, huff => 1 },
-			{ name => 'x-cache-status', value => $cache_status,
 				mode => 2, huff => 1 }];
 		push @$h, { name => 'content-length', value => $extra{cl} }
 			if $extra{cl};
@@ -185,6 +171,12 @@ sub proxy_http2 {
 				mode => 2, huff => 1 },
 		]}, $sid);
 
+		return $s->read(all => [{ fin => 1 }]);
+	};
+	$f->{request} = sub {
+		my ($uri) = @_;
+		$s = Test::Nginx::HTTP2->new() if !defined $s;
+		my $sid = $s->new_stream({ path => $uri });
 		return $s->read(all => [{ fin => 1 }]);
 	};
 	return $f;
