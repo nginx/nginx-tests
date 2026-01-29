@@ -65,6 +65,7 @@ http {
         server_name  localhost;
 
         proxy_ssl_session_reuse off;
+        proxy_http_version 1.0;
 
         location /ssl_reuse {
             proxy_pass https://u/;

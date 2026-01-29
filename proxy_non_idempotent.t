@@ -54,6 +54,8 @@ http {
 
         add_header X-IP $upstream_addr always;
 
+        proxy_http_version 1.0;
+
         location / {
             proxy_pass http://u;
             proxy_next_upstream error timeout http_404;

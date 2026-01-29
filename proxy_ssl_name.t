@@ -54,6 +54,7 @@ http {
         # will use server name previously negotiated
 
         proxy_ssl_session_reuse off;
+        proxy_http_version 1.0;
 
         location /1 {
             proxy_pass https://127.0.0.1:8081/;

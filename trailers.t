@@ -48,6 +48,8 @@ http {
         add_trailer  X-Sent-Trailer $sent_trailer_x_var;
         add_trailer  X-Complex $host:$host;
 
+        proxy_http_version 1.0;
+
         location /t1 {
         }
 
