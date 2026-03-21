@@ -23,7 +23,7 @@ use Test::Nginx::HTTP2;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http http_v2 proxy rewrite/)->plan(110)
+my $t = Test::Nginx->new()->has(qw/http http_v2 proxy rewrite/)->plan(133)
 	->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
@@ -937,23 +937,69 @@ ok($frame, 'HPACK table boundary - header field value');
 # 10.3.  Intermediary Encapsulation Attacks
 #   Any request or response that contains a character not permitted
 #   in a header field value MUST be treated as malformed.
+my $malformed_values = 0;
+foreach my $malformed_value (
+	"x-bar\rreferrer: baz",
+	"x-bar\0referrer: junk",
+	"x-bar\nreferrer: junk",
+) {
+	$malformed_values += 1;
+	subtest "Malformed value test $malformed_values" => sub {
+		plan tests => 2;
 
-$s = Test::Nginx::HTTP2->new();
-$sid = $s->new_stream({ headers => [
-	{ name => ':method', value => 'GET', mode => 0 },
-	{ name => ':scheme', value => 'http', mode => 0 },
-	{ name => ':path', value => '/proxy2/', mode => 1 },
-	{ name => ':authority', value => 'localhost', mode => 1 },
-	{ name => 'x-foo', value => "x-bar\r\nreferer:see-this", mode => 2 }]});
-$frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
+		$s = Test::Nginx::HTTP2->new();
+		$sid = $s->new_stream({ headers => [
+			{ name => ':method', value => 'GET', mode => 0 },
+			{ name => ':scheme', value => 'http', mode => 0 },
+			{ name => ':path', value => '/proxy2/', mode => 2 },
+			{ name => ':authority', value => 'localhost', mode => 2 },
+			{ name => 'x-foo', value => $malformed_value, mode => 4 }]});
+		$frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
 
-# 10.3.  Intermediary Encapsulation Attacks
-#   An intermediary therefore cannot translate an HTTP/2 request or response
-#   containing an invalid field name into an HTTP/1.1 message.
+		#   Therefore, an intermediary cannot translate an HTTP/2 request or response
+		#   containing an invalid field name into an HTTP/1.1 message.
 
-($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
-isnt($frame->{headers}->{'x-referer'}, 'see-this', 'newline in request header');
-is($frame->{headers}->{':status'}, 400, 'newline in request header - bad request');
+		($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
+		is($frame->{headers}->{'x-sent-foo'}, undef, 'malformed header not forwarded');
+		is($frame->{headers}->{':status'}, 400, 'newline in request header - bad request');
+	}
+}
+
+foreach my $malformed_value (
+	"okay value",
+	" leading space",
+	"\tleading tab",
+	"trailing space ",
+	"trailing tab\t",
+	"\tleading and trailing tab\t",
+	" leading space and trailing tab\t",
+	"   \t ",
+	"   ",
+	"0",
+	"",
+) {
+	$s = Test::Nginx::HTTP2->new();
+	$sid = $s->new_stream({ headers => [
+		{ name => ':method', value => 'GET', mode => 0 },
+		{ name => ':scheme', value => 'http', mode => 0 },
+		{ name => ':path', value => '/proxy2/', mode => 2 },
+		{ name => ':authority', value => 'localhost', mode => 2 },
+		{ name => 'x-foo', value => $malformed_value, mode => 2 }]});
+	$frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
+
+	#   Therefore, an intermediary cannot translate an HTTP/2 request or response
+	#   containing an invalid field name into an HTTP/1.1 message.
+
+	($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
+	is($frame->{headers}->{':status'}, 200, 'value stripped');
+	my $stripped = $malformed_value =~ s/(\A[ \t]*)|([ \t]*\z)//rg;
+	if ($stripped eq '') {
+		undef $stripped;
+	}
+	is($frame->{headers}->{'x-sent-foo'},
+	   $stripped,
+	   'leading and trailing space stripped');
+}
 
 # invalid header name as seen with underscore should not lead to ignoring rest
 
