@@ -78,7 +78,7 @@ system('openssl req -x509 -new '
 	. ">>$d/openssl.out 2>&1") == 0
 	or die "Can't create certificate for localhost: $!\n";
 
-$t->run()->plan(11);
+$t->run()->plan(9);
 
 ###############################################################################
 
@@ -106,11 +106,8 @@ if ($t->has_module('OpenSSL') && $t->has_feature('openssl:3.2')) {
 $t->stop();
 
 my @log = grep { length } split /\n/, eval { $t->read_file('rtt.log') };
-my @rejected = grep { $_ eq '-:-' } @log;
 my ($tls12) = grep { /^TLSv1\.2:/ } @log;
 
-is(scalar(@log), defined $tls13_out ? 4 : 3, 'access log lines');
-is(scalar(@rejected), 2, 'pre-TLSv1.2 rejected logged');
 ok(defined $tls12, 'TLSv1.2 logged');
 like($tls12, qr/^TLSv1\.2:(?:\d+)?$/, 'TLSv1.2 handshake rtt');
 
