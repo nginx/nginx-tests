@@ -23,7 +23,8 @@ use Test::Nginx::HTTP3;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http http_v3/);
+my $t = Test::Nginx->new()->has(qw/http http_v3 cryptx/)
+	->has_daemon('openssl');
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
