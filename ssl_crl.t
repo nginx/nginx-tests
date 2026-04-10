@@ -23,7 +23,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http http_ssl socket_ssl/)
-	->has_daemon('openssl')->plan(3);
+	->has_daemon('openssl')->plan(5);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -68,6 +68,22 @@ http {
         ssl_verify_depth 2;
         ssl_crl root.crl;
     }
+
+    server {
+        listen       127.0.0.1:8083 ssl;
+        server_name  localhost;
+
+        ssl_verify_depth 2;
+        ssl_crl empty.crl;
+    }
+
+    server {
+        listen       127.0.0.1:8084 ssl;
+        server_name  localhost;
+
+        ssl_verify_depth 2;
+        ssl_crl empty-chain.crl;
+    }
 }
 
 EOF
@@ -96,9 +112,14 @@ default_md = sha256
 policy = myca_policy
 serial = $d/certserial
 default_days = 1
+x509_extensions = myca_extensions
 
 [ myca_policy ]
 commonName = supplied
+
+[ myca_extensions ]
+basicConstraints = critical,CA:TRUE
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
 EOF
 
 foreach my $name ('root', 'localhost') {
@@ -138,6 +159,15 @@ system("openssl ca -gencrl -config $d/ca.conf "
 	. ">>$d/openssl.out 2>&1") == 0
 	or die "Can't create empty crl: $!\n";
 
+system("openssl ca -gencrl -config $d/ca.conf "
+	. "-keyfile $d/int.key -cert $d/int.crt "
+	. "-out $d/int.crl -crldays 1 "
+	. ">>$d/openssl.out 2>&1") == 0
+	or die "Can't update crl: $!\n";
+
+$t->write_file('empty-chain.crl',
+	$t->read_file('empty.crl') . $t->read_file('int.crl'));
+
 system("openssl ca -config $d/ca.conf -revoke $d/int.crt "
 	. "-keyfile $d/root.key -cert $d/root.crt "
 	. ">>$d/openssl.out 2>&1") == 0
@@ -158,8 +188,14 @@ $t->run();
 ###############################################################################
 
 like(get(8080, 'int'), qr/SUCCESS/, 'crl - no revoked certs');
-like(get(8081, 'int'), qr/FAILED/, 'crl - client cert revoked');
-like(get(8082, 'end'), qr/FAILED/, 'crl - intermediate cert revoked');
+like(get(8081, 'int'), qr/FAILED:certificate revoked/, 'crl - client revoked');
+like(get(8082, 'end'), qr/FAILED:certificate revoked/, 'crl - CA revoked');
+
+# intermediate CAs, incomplete chain
+
+like(get(8083, 'end'), qr/FAILED:unable to get certificate CRL/,
+	'crl - incomplete chain');
+like(get(8084, 'end'), qr/SUCCESS/, 'crl - no revoked chain');
 
 ###############################################################################
 
