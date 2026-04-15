@@ -90,7 +90,7 @@ is($headers->{':status'}, '400', 'h2 CONNECT requires :authority');
 
 ($s, $sid, $headers) = h2_connect(port(8082),
 	authority => 'ignored.example:443');
-is($headers->{':status'}, '400', 'h2 CONNECT rejected when tunnel disabled');
+is($headers->{':status'}, '405', 'h2 CONNECT rejected when tunnel disabled');
 
 ###############################################################################
 

@@ -102,7 +102,7 @@ is($headers->{':status'}, '400', 'h3 CONNECT requires :authority');
 
 ($s, $sid, $headers) = h3_connect(8981,
 	authority => 'ignored.example:443');
-is($headers->{':status'}, '400', 'h3 CONNECT rejected when tunnel disabled');
+is($headers->{':status'}, '405', 'h3 CONNECT rejected when tunnel disabled');
 
 ###############################################################################
 
