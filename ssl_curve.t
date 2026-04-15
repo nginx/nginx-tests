@@ -77,7 +77,7 @@ $t->run()->plan(1);
 
 local $TODO = 'OpenSSL too old'
 	unless $t->has_feature('openssl:3.0.0')
-	or $t->has_module('BoringSSL');
+	or $t->has_module('BoringSSL|AWS-LC');
 
 like(http_get('/curve', SSL => 1), qr/^prime256v1 /m, 'ssl curve');
 
