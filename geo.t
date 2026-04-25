@@ -189,6 +189,8 @@ http {
 
 EOF
 
+$t->write_file('nginx.conf', $t->read_file('nginx.conf') =~ s/ geo\./ *geo./gr)
+	if $t->has_version('1.29.8');
 $t->write_file('1', '');
 $t->write_file('2', '');
 $t->write_file('geo.conf', '127.0.0.0/8  loopback;');
