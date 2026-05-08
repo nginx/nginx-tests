@@ -136,6 +136,7 @@ sub has_module($) {
 		referer	=> '(?s)^(?!.*--without-http_referer_module)',
 		rewrite	=> '(?s)^(?!.*--without-http_rewrite_module)',
 		proxy	=> '(?s)^(?!.*--without-http_proxy_module)',
+		tunnel	=> '(?s)^(?!.*--without-http_tunnel_module)',
 		fastcgi	=> '(?s)^(?!.*--without-http_fastcgi_module)',
 		uwsgi	=> '(?s)^(?!.*--without-http_uwsgi_module)',
 		scgi	=> '(?s)^(?!.*--without-http_scgi_module)',
