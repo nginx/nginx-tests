@@ -24,7 +24,7 @@ use Test::Nginx::Stream qw/ stream /;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/stream/)->plan(4)
+my $t = Test::Nginx->new()->has(qw/stream/)->has_daemon('ss')
 	->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
@@ -67,7 +67,8 @@ stream {
 EOF
 
 $t->run_daemon(\&stream_daemon);
-$t->run()->waitforsocket('127.0.0.1:' . port(8084));
+$t->try_run('no proxy_socket_*buf')->plan(9);
+$t->waitforsocket('127.0.0.1:' . port(8084));
 
 ###############################################################################
 
@@ -87,7 +88,79 @@ is(stream('127.0.0.1:' . port(8082))->io('close', length => 5), 'close',
 is(stream('127.0.0.1:' . port(8083))->io('close', length => 5), 'close',
 	'no directive (default off)');
 
+my $s = stream('127.0.0.1:' . port(8082));
+$s->write('hold');
+
+my ($rb, $tb) = ss_socket_buffers(port(8084));
+cmp_ok($rb, '>=', 256 * 1024, 'stream proxy_socket_rcvbuf seen by ss');
+cmp_ok($tb, '>=', 128 * 1024, 'stream proxy_socket_sndbuf seen by ss');
+
+like(config_fails($t, 'proxy_socket_rcvbuf 0;'), qr/invalid value "0"/,
+	'stream proxy_socket_rcvbuf zero');
+
+like(config_fails($t, 'proxy_socket_sndbuf -1;'), qr/invalid value "-1"/,
+	'stream proxy_socket_sndbuf negative');
+
+like(config_fails($t, "proxy_socket_rcvbuf 4k;\n"
+	. "        proxy_socket_rcvbuf 8k;"),
+	qr/"proxy_socket_rcvbuf" directive is duplicate/,
+	'stream proxy_socket_rcvbuf duplicate');
+
 ###############################################################################
+
+sub config_fails {
+	my ($t, $directives) = @_;
+
+	my $name = 'nginx-bad.conf';
+
+	$t->write_file_expand($name, <<EOF);
+%%TEST_GLOBALS%%
+
+daemon off;
+
+events {
+}
+
+stream {
+    %%TEST_GLOBALS_STREAM%%
+
+    server {
+        listen      127.0.0.1:8090;
+        proxy_pass  127.0.0.1:8084;
+        $directives
+    }
+}
+
+EOF
+
+	my $d = $t->testdir();
+	local $?;
+	return `$Test::Nginx::NGINX -t -p $d/ -c $name -e error.log 2>&1`;
+}
+
+sub ss_socket_buffers {
+	my ($port) = @_;
+
+	for (1 .. 50) {
+		my $out = `ss -tnpemi 2>&1`;
+
+		foreach my $entry (split /\n(?=ESTAB)/, $out) {
+			next unless $entry =~
+				/^ESTAB\s+\S+\s+\S+\s+\S+\s+127\.0\.0\.1:$port\b/m;
+			next unless $entry =~ /skmem:\(([^)]*)\)/;
+
+			my $skmem = $1;
+			my ($rb) = $skmem =~ /(?:^|,)rb(\d+)/;
+			my ($tb) = $skmem =~ /(?:^|,)tb(\d+)/;
+
+			return ($rb, $tb) if defined $rb && defined $tb;
+		}
+
+		select undef, undef, undef, 0.1;
+	}
+
+	return (0, 0);
+}
 
 sub stream_daemon {
 	my $server = IO::Socket::INET->new(
