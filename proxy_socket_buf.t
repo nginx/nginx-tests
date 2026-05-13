@@ -72,7 +72,7 @@ http {
 EOF
 
 $t->run_daemon(\&http_daemon, $t->testdir());
-$t->try_run('no upstream socket buffer directives')->plan(14);
+$t->try_run('no upstream socket buffer directives')->plan(15);
 $t->waitforsocket('127.0.0.1:' . port(8081));
 
 ###############################################################################
@@ -139,6 +139,17 @@ like(config_ok($t, "scgi_pass 127.0.0.1:8085;\n"
 	. "            scgi_socket_rcvbuf 256k;\n"
 	. "            scgi_socket_sndbuf 128k;"),
 	qr/syntax is ok/, 'scgi_socket_*buf parsed');
+
+}
+
+SKIP: {
+my $tunnel = config_ok($t, "tunnel_pass 127.0.0.1:8087;\n"
+	. "            tunnel_socket_rcvbuf 256k;\n"
+	. "            tunnel_socket_sndbuf 128k;");
+
+skip 'no tunnel', 1 if $tunnel =~ /unknown directive "tunnel_pass"/;
+
+like($tunnel, qr/syntax is ok/, 'tunnel_socket_*buf parsed');
 
 }
 
