@@ -127,10 +127,10 @@ like(http_get('/vars'), qr/X-Proxy-Host:\s127\.0\.0\.1:$p0/, 'proxy_host');
 like(http_get('/vars'), qr/X-Proxy-Port:\s$p0/, 'proxy_port');
 like(http_xff('/vars', '192.0.2.1'), qr/X-Proxy-Forwarded:.*192\.0\.2\.1/,
 	'proxy_add_x_forwarded_for');
-like(http_xff('/test-tabs', " \t 192.0.2.1\t "), qr/tabs got stripped/,
-	'tabs stripped');
+like(http_xff('/test-tabs', "\t 192.0.2.1\t "), qr/tabs got stripped/,
+	'leading and trailing spaces and tabs stripped 1');
 like(http_xff('/test-tabs', " \t 192.0.2.1 \t"), qr/tabs got stripped/,
-	'tabs stripped');
+	'leading and trailing spaces and tabs stripped 2');
 
 ($ct, $ht) = get('/time/header');
 cmp_ok($ct, '<', 1, 'connect time - slow response header');
