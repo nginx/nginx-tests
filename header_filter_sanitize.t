@@ -20,7 +20,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http rewrite/)->plan(6);
+my $t = Test::Nginx->new()->has(qw/http rewrite/)->plan(12);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -45,6 +45,18 @@ http {
 
         location /resp-trailer/ {
             add_trailer X-Original-Path $uri always;
+            return 200 "ok\n";
+        }
+
+        location /bad-name-header/ {
+            add_header X-Good ok always;
+            add_header X:Bad ok always;
+            return 200 "ok\n";
+        }
+
+        location /bad-name-trailer/ {
+            add_trailer X-Good ok always;
+            add_trailer X:Bad ok always;
             return 200 "ok\n";
         }
     }
@@ -72,6 +84,20 @@ like($response, qr/X-Original-Path: \/resp-trailer\//,
     'add_trailer still emits trailer');
 unlike($response, qr/\x0d\x0aX-Injected:\s*yes/i,
     'add_trailer does not emit injected trailer header');
+
+$response = get('/bad-name-header/ok');
+like($response, qr/200 OK/, 'add_header keeps response with bad field name');
+like($response, qr/\x0d\x0aX-Good: ok\x0d\x0a/i,
+    'add_header still emits valid field');
+unlike($response, qr/\x0d\x0aX:Bad:/i,
+    'add_header skips invalid field name');
+
+$response = get('/bad-name-trailer/ok');
+like($response, qr/200 OK/, 'add_trailer keeps response with bad field name');
+like($response, qr/\x0d\x0aX-Good: ok\x0d\x0a/i,
+    'add_trailer still emits valid trailer');
+unlike($response, qr/\x0d\x0aX:Bad:/i,
+    'add_trailer skips invalid field name');
 
 ###############################################################################
 
