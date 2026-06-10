@@ -243,13 +243,9 @@ is(many('/u5/', 10), "$p1: 5, $p2: 5", 'equal response time');
 @s = map { http_get("/u6/?r=$_", start => 1) } (1, 2, 1, 2);
 http_end $_ for @s;
 
+SKIP: {
 like(parallel('/u6/?r=both', 10), qr/($p1|$p2): \d, ($p1|$p2): \d/,
 	'equal response time average');
-
-}
-
-
-SKIP: {
 skip 'unsafe on VM', 1 unless $ENV{TEST_NGINX_UNSAFE};
 
 # lesser inflight time wins

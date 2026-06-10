@@ -400,6 +400,11 @@ sub run(;$) {
 
 	my $pid = fork();
 	die "Unable to fork(): $!\n" unless defined $pid;
+        if (defined $ENV{'ASAN_OPTIONS'}) {
+            $ENV{'ASAN_OPTIONS'} = 'detect_leaks=0,' . $ENV{'ASAN_OPTIONS'};
+        } else {
+            $ENV{'ASAN_OPTIONS'} = 'detect_leaks=0';
+        }
 
 	if ($pid == 0) {
 		my @globals = $self->{_test_globals} ?
