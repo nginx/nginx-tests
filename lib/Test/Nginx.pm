@@ -216,6 +216,8 @@ sub has_module($) {
 	my %modules = (
 		http_geoip
 			=> 'ngx_http_geoip_module',
+		http_geoip2
+			=> 'ngx_http_geoip2_module',
 		image_filter
 			=> 'ngx_http_image_filter_module',
 		perl	=> 'ngx_http_perl_module',
@@ -224,6 +226,8 @@ sub has_module($) {
 		stream	=> 'ngx_stream_module',
 		stream_geoip
 			=> 'ngx_stream_geoip_module',
+		stream_geoip2
+			=> 'ngx_stream_geoip2_module',
 	);
 
 	my $module = $modules{$feature};
@@ -722,6 +726,9 @@ sub test_globals_modules() {
 	$s .= "load_module $modules/ngx_http_geoip_module.so;\n"
 		if $self->has_module('http_geoip\S+=dynamic');
 
+	$s .= "load_module $modules/ngx_http_geoip2_module.so;\n"
+		if $self->has_module('http_geoip2\S+=dynamic');
+
 	$s .= "load_module $modules/ngx_http_image_filter_module.so;\n"
 		if $self->has_module('image_filter\S+=dynamic');
 
@@ -739,6 +746,9 @@ sub test_globals_modules() {
 
 	$s .= "load_module $modules/ngx_stream_geoip_module.so;\n"
 		if $self->has_module('stream_geoip\S+=dynamic');
+
+	$s .= "load_module $modules/ngx_stream_geoip2_module.so;\n"
+		if $self->has_module('stream_geoip2\S+=dynamic');
 
 	return $s;
 }
