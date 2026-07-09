@@ -39,16 +39,10 @@ http {
         listen       127.0.0.1:8080;
         server_name  localhost;
 
-        location /off {
+        location /zero {
             proxy_pass http://127.0.0.1:8081;
-            proxy_socket_rcvbuf off;
-            proxy_socket_sndbuf off;
-        }
-
-        location /max {
-            proxy_pass http://127.0.0.1:8081;
-            proxy_socket_rcvbuf max;
-            proxy_socket_sndbuf max;
+            proxy_socket_rcvbuf 0;
+            proxy_socket_sndbuf 0;
         }
 
         location /size {
@@ -72,15 +66,14 @@ http {
 EOF
 
 $t->run_daemon(\&http_daemon, $t->testdir());
-$t->try_run('no upstream socket buffer directives')->plan(15);
+$t->try_run('no upstream socket buffer directives')->plan(21);
 $t->waitforsocket('127.0.0.1:' . port(8081));
 
 ###############################################################################
 
-like(http_get('/off'), qr/SEE-THIS/, 'proxy_socket_*buf off');
-like(http_get('/max'), qr/SEE-THIS/, 'proxy_socket_*buf max');
+like(http_get('/zero'), qr/SEE-THIS/, 'proxy_socket_*buf zero');
 like(http_get('/size'), qr/SEE-THIS/, 'proxy_socket_*buf size');
-like(http_get('/default'), qr/SEE-THIS/, 'no directive (default off)');
+like(http_get('/default'), qr/SEE-THIS/, 'no directive (default zero)');
 
 my $s = http(<<EOF, start => 1);
 GET /hold HTTP/1.0
@@ -99,27 +92,37 @@ cmp_ok($tb, '>=', 128 * 1024, 'proxy_socket_sndbuf seen by ss');
 $s->close();
 
 SKIP: {
-skip 'no fastcgi', 1 unless $t->has_module('fastcgi');
+skip 'no fastcgi', 2 unless $t->has_module('fastcgi');
 
 like(config_ok($t, "fastcgi_pass 127.0.0.1:8082;\n"
 	. "            fastcgi_socket_rcvbuf 256k;\n"
 	. "            fastcgi_socket_sndbuf 128k;"),
 	qr/syntax is ok/, 'fastcgi_socket_*buf parsed');
 
+like(config_ok($t, "fastcgi_pass 127.0.0.1:8082;\n"
+	. "            fastcgi_socket_rcvbuf 0;\n"
+	. "            fastcgi_socket_sndbuf 0;"),
+	qr/syntax is ok/, 'fastcgi_socket_*buf zero parsed');
+
 }
 
 SKIP: {
-skip 'no grpc', 1 unless $t->has_module('grpc');
+skip 'no grpc', 2 unless $t->has_module('grpc');
 
 like(config_ok($t, "grpc_pass 127.0.0.1:8083;\n"
 	. "            grpc_socket_rcvbuf 256k;\n"
 	. "            grpc_socket_sndbuf 128k;"),
 	qr/syntax is ok/, 'grpc_socket_*buf parsed');
 
+like(config_ok($t, "grpc_pass 127.0.0.1:8083;\n"
+	. "            grpc_socket_rcvbuf 0;\n"
+	. "            grpc_socket_sndbuf 0;"),
+	qr/syntax is ok/, 'grpc_socket_*buf zero parsed');
+
 }
 
 SKIP: {
-skip 'no memcached/map', 1
+skip 'no memcached/map', 2
 	unless $t->has_module('memcached') && $t->has_module('map');
 
 like(config_ok($t, "memcached_pass 127.0.0.1:8084;\n"
@@ -130,15 +133,28 @@ like(config_ok($t, "memcached_pass 127.0.0.1:8084;\n"
 	. "    }\n"),
 	qr/syntax is ok/, 'memcached_socket_*buf parsed');
 
+like(config_ok($t, "memcached_pass 127.0.0.1:8084;\n"
+	. "            memcached_socket_rcvbuf 0;\n"
+	. "            memcached_socket_sndbuf 0;",
+	"    map \$uri \$memcached_key {\n"
+	. "        default \$uri;\n"
+	. "    }\n"),
+	qr/syntax is ok/, 'memcached_socket_*buf zero parsed');
+
 }
 
 SKIP: {
-skip 'no scgi', 1 unless $t->has_module('scgi');
+skip 'no scgi', 2 unless $t->has_module('scgi');
 
 like(config_ok($t, "scgi_pass 127.0.0.1:8085;\n"
 	. "            scgi_socket_rcvbuf 256k;\n"
 	. "            scgi_socket_sndbuf 128k;"),
 	qr/syntax is ok/, 'scgi_socket_*buf parsed');
+
+like(config_ok($t, "scgi_pass 127.0.0.1:8085;\n"
+	. "            scgi_socket_rcvbuf 0;\n"
+	. "            scgi_socket_sndbuf 0;"),
+	qr/syntax is ok/, 'scgi_socket_*buf zero parsed');
 
 }
 
@@ -147,26 +163,42 @@ my $tunnel = config_ok($t, "tunnel_pass 127.0.0.1:8087;\n"
 	. "            tunnel_socket_rcvbuf 256k;\n"
 	. "            tunnel_socket_sndbuf 128k;");
 
-skip 'no tunnel', 1 if $tunnel =~ /unknown directive "tunnel_pass"/;
+skip 'no tunnel', 2 if $tunnel =~ /unknown directive "tunnel_pass"/;
 
 like($tunnel, qr/syntax is ok/, 'tunnel_socket_*buf parsed');
+
+like(config_ok($t, "tunnel_pass 127.0.0.1:8087;\n"
+	. "            tunnel_socket_rcvbuf 0;\n"
+	. "            tunnel_socket_sndbuf 0;"),
+	qr/syntax is ok/, 'tunnel_socket_*buf zero parsed');
 
 }
 
 SKIP: {
-skip 'no uwsgi', 1 unless $t->has_module('uwsgi');
+skip 'no uwsgi', 2 unless $t->has_module('uwsgi');
 
 like(config_ok($t, "uwsgi_pass 127.0.0.1:8086;\n"
 	. "            uwsgi_socket_rcvbuf 256k;\n"
 	. "            uwsgi_socket_sndbuf 128k;"),
 	qr/syntax is ok/, 'uwsgi_socket_*buf parsed');
 
+like(config_ok($t, "uwsgi_pass 127.0.0.1:8086;\n"
+	. "            uwsgi_socket_rcvbuf 0;\n"
+	. "            uwsgi_socket_sndbuf 0;"),
+	qr/syntax is ok/, 'uwsgi_socket_*buf zero parsed');
+
 }
 
-like(config_fails($t, 'proxy_socket_rcvbuf 0;'), qr/invalid value "0"/,
-	'proxy_socket_rcvbuf zero');
+like(config_fails($t, 'proxy_socket_rcvbuf off;'),
+	qr/"proxy_socket_rcvbuf" directive invalid value/,
+	'proxy_socket_rcvbuf off');
 
-like(config_fails($t, 'proxy_socket_sndbuf -1;'), qr/invalid value "-1"/,
+like(config_fails($t, 'proxy_socket_sndbuf max;'),
+	qr/"proxy_socket_sndbuf" directive invalid value/,
+	'proxy_socket_sndbuf max');
+
+like(config_fails($t, 'proxy_socket_sndbuf -1;'),
+	qr/"proxy_socket_sndbuf" directive invalid value/,
 	'proxy_socket_sndbuf negative');
 
 like(config_fails($t, "proxy_socket_rcvbuf 4k;\n"

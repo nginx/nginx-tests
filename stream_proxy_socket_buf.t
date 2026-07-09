@@ -40,26 +40,19 @@ stream {
     server {
         listen      127.0.0.1:8080;
         proxy_pass  127.0.0.1:8084;
-        proxy_socket_rcvbuf off;
-        proxy_socket_sndbuf off;
+        proxy_socket_rcvbuf 0;
+        proxy_socket_sndbuf 0;
     }
 
     server {
         listen      127.0.0.1:8081;
-        proxy_pass  127.0.0.1:8084;
-        proxy_socket_rcvbuf max;
-        proxy_socket_sndbuf max;
-    }
-
-    server {
-        listen      127.0.0.1:8082;
         proxy_pass  127.0.0.1:8084;
         proxy_socket_rcvbuf 256k;
         proxy_socket_sndbuf 128k;
     }
 
     server {
-        listen      127.0.0.1:8083;
+        listen      127.0.0.1:8082;
         proxy_pass  127.0.0.1:8084;
     }
 }
@@ -77,28 +70,31 @@ $t->waitforsocket('127.0.0.1:' . port(8084));
 # SIGQUIT time.
 
 is(stream('127.0.0.1:' . port(8080))->io('close', length => 5), 'close',
-	'proxy_socket_*buf off');
+	'proxy_socket_*buf zero');
 
 is(stream('127.0.0.1:' . port(8081))->io('close', length => 5), 'close',
-	'proxy_socket_*buf max');
-
-is(stream('127.0.0.1:' . port(8082))->io('close', length => 5), 'close',
 	'proxy_socket_*buf size');
 
-is(stream('127.0.0.1:' . port(8083))->io('close', length => 5), 'close',
-	'no directive (default off)');
+is(stream('127.0.0.1:' . port(8082))->io('close', length => 5), 'close',
+	'no directive (default zero)');
 
-my $s = stream('127.0.0.1:' . port(8082));
+my $s = stream('127.0.0.1:' . port(8081));
 $s->write('hold');
 
 my ($rb, $tb) = ss_socket_buffers(port(8084));
 cmp_ok($rb, '>=', 256 * 1024, 'stream proxy_socket_rcvbuf seen by ss');
 cmp_ok($tb, '>=', 128 * 1024, 'stream proxy_socket_sndbuf seen by ss');
 
-like(config_fails($t, 'proxy_socket_rcvbuf 0;'), qr/invalid value "0"/,
-	'stream proxy_socket_rcvbuf zero');
+like(config_fails($t, 'proxy_socket_rcvbuf off;'),
+	qr/"proxy_socket_rcvbuf" directive invalid value/,
+	'stream proxy_socket_rcvbuf off');
 
-like(config_fails($t, 'proxy_socket_sndbuf -1;'), qr/invalid value "-1"/,
+like(config_fails($t, 'proxy_socket_sndbuf max;'),
+	qr/"proxy_socket_sndbuf" directive invalid value/,
+	'stream proxy_socket_sndbuf max');
+
+like(config_fails($t, 'proxy_socket_sndbuf -1;'),
+	qr/"proxy_socket_sndbuf" directive invalid value/,
 	'stream proxy_socket_sndbuf negative');
 
 like(config_fails($t, "proxy_socket_rcvbuf 4k;\n"
