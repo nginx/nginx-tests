@@ -22,7 +22,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy cache rewrite/)->plan(20);
+my $t = Test::Nginx->new()->has(qw/http proxy cache rewrite/)->plan(22);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -184,6 +184,16 @@ http {
             add_header Cache-control max-age=60;
             return 204;
         }
+
+        location /cache-control-extension-max-age {
+            add_header Cache-Control x-max-age=60;
+            return 204;
+        }
+
+        location /cache-control-extension-s-maxage {
+            add_header Cache-Control foo-s-maxage=60;
+            return 204;
+        }
     }
 }
 
@@ -253,6 +263,19 @@ like(get('/extension-after-x-accel-expires'),
 # Set-Cookie is considered when caching with Cache-Control
 
 like(get('/set-cookie'), qr/MISS/, 'set-cookie not cached');
+
+# extension directives that merely contain a standard directive name are
+# not treated as the standard freshness directive
+
+TODO: {
+local $TODO = 'not yet';
+
+like(get('/cache-control-extension-max-age'), qr/MISS/,
+	'cache-control extension max-age');
+like(get('/cache-control-extension-s-maxage'), qr/MISS/,
+	'cache-control extension s-maxage');
+
+}
 
 ###############################################################################
 
