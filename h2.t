@@ -761,7 +761,7 @@ is($sum, 80, 'iws duplicate - updated stream window 2');
 # SETTINGS frame split after INITIAL_WINDOW_SIZE
 
 TODO: {
-local $TODO = 'not yet';
+local $TODO = 'not yet' unless $t->has_version('1.31.3');
 
 $s = Test::Nginx::HTTP2->new();
 
