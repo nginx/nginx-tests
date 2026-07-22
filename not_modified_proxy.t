@@ -26,7 +26,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy cache/)->plan(12);
+my $t = Test::Nginx->new()->has(qw/http proxy cache/)->plan(17);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -45,6 +45,7 @@ http {
     proxy_set_header If-Modified-Since "";
     proxy_set_header If-Unmodified-Since "";
     proxy_set_header If-None-Match "";
+    proxy_set_header If-Match "";
 
     server {
         listen       127.0.0.1:8080;
@@ -55,6 +56,12 @@ http {
 
         location /etag {
             add_header Last-Modified "";
+        }
+
+        location /weak {
+            etag off;
+            add_header Last-Modified "";
+            add_header ETag 'W/"weak"';
         }
 
         location /proxy/ {
@@ -73,6 +80,7 @@ EOF
 
 $t->write_file('t', '');
 $t->write_file('etag', '');
+$t->write_file('weak', '');
 
 $t->run();
 
@@ -107,6 +115,26 @@ like(http_get_inm('/etag', $etag), qr/ 304 /, 'if-none-match etag only');
 like(http_get_inm('/proxy/etag', $etag), qr/ 200 /, 'inm etag proxy ignored');
 like(http_get_inm('/cache/etag', $etag), qr/ 304 /, 'inm etag from cache');
 
+# backend response with weak ETag; a weak entity tag matches under weak
+# comparison, but never under strong comparison (RFC 9110, 8.8.3.2)
+
+$t1 = http_get('/cache/weak');
+$t1 =~ /ETag: (W\/".*")/; $etag = $1;
+
+like(http_get_inm('/cache/weak', $etag), qr/ 304 /, 'inm weak from cache');
+like(http_get_inm('/cache/weak', substr($etag, 2)), qr/ 304 /,
+	'inm weak opaque from cache');
+like(http_get_im('/cache/weak', substr($etag, 2)), qr/ 412 /,
+	'im weak opaque from cache');
+like(http_get_im('/cache/weak', '*'), qr/ 200 /, 'im all weak from cache');
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.4');
+
+like(http_get_im('/cache/weak', $etag), qr/ 412 /, 'im weak from cache');
+
+}
+
 ###############################################################################
 
 sub http_get_ims {
@@ -135,6 +163,16 @@ sub http_get_inm {
 GET $url HTTP/1.0
 Host: localhost
 If-None-Match: $inm
+
+EOF
+}
+
+sub http_get_im {
+	my ($url, $im) = @_;
+	return http(<<EOF);
+GET $url HTTP/1.0
+Host: localhost
+If-Match: $im
 
 EOF
 }
