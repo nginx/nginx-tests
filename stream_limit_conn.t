@@ -23,7 +23,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http stream stream_limit_conn/)
-	->plan(8)->write_file_expand('nginx.conf', <<'EOF');
+	->plan(9)->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
 
@@ -37,6 +37,9 @@ stream {
 
     limit_conn_zone  $binary_remote_addr  zone=zone:1m;
     limit_conn_zone  $binary_remote_addr  zone=zone2:1m;
+
+    # a key that always exceeds the 255-byte storable length
+    limit_conn_zone  "$binary_remote_addr aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"  zone=longkey:1m;
 
     server {
         listen           127.0.0.1:8080;
@@ -66,6 +69,12 @@ stream {
         listen           127.0.0.1:8083;
         proxy_pass       127.0.0.1:8080;
         limit_conn       zone 1;
+    }
+
+    server {
+        listen           127.0.0.1:8086;
+        proxy_pass       127.0.0.1:8084;
+        limit_conn       longkey 1;
     }
 }
 
@@ -110,6 +119,15 @@ EOF
 
 like(get('127.0.0.1:' . port(8082)), qr/200 OK/, 'passed proxy');
 is(get('127.0.0.1:' . port(8083)), undef, 'rejected proxy');
+
+# an overlong key is rejected instead of silently skipping the limit
+
+TODO: {
+local $TODO = 'not yet';
+
+is(get('127.0.0.1:' . port(8086)), undef, 'overlong key rejected');
+
+}
 
 ###############################################################################
 
