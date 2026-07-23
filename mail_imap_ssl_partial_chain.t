@@ -2,7 +2,7 @@
 
 # (C) Nginx, Inc.
 
-# Tests for nginx mail imap module with ssl_verify_client partial_chain.
+# Tests for nginx mail imap module with ssl_verify_partial_chain.
 
 ###############################################################################
 
@@ -28,7 +28,7 @@ local $SIG{PIPE} = 'IGNORE';
 
 my $t = Test::Nginx->new()
 	->has(qw/mail mail_ssl imap http rewrite socket_ssl_sslversion/)
-	->has_daemon('openssl')->plan(9)
+	->has_daemon('openssl')->plan(12)
 	->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
@@ -51,7 +51,8 @@ mail {
         listen     127.0.0.1:18080 ssl;
         protocol   imap;
 
-        ssl_verify_client    partial_chain;
+        ssl_verify_client    on;
+        ssl_verify_partial_chain on;
         ssl_client_certificate int.crt;
     }
 
@@ -67,8 +68,18 @@ mail {
         listen     127.0.0.1:18082 ssl;
         protocol   imap;
 
-        ssl_verify_client       partial_chain;
+        ssl_verify_client       on;
+        ssl_verify_partial_chain on;
         ssl_trusted_certificate int.crt;
+    }
+
+    server {
+        listen     127.0.0.1:18085 ssl;
+        protocol   imap;
+
+        ssl_verify_client    optional;
+        ssl_verify_partial_chain on;
+        ssl_client_certificate int.crt;
     }
 }
 
@@ -226,6 +237,28 @@ $s = Test::Nginx::IMAP->new(
 );
 $s->check(qr/BYE SSL certificate error/,
 	'partial_chain trusted_certificate - unknown cert rejected');
+
+$s = Test::Nginx::IMAP->new(PeerAddr => '127.0.0.1:18085', SSL => 1);
+$s->ok('partial_chain optional - no cert');
+$s->send('1 AUTHENTICATE PLAIN ' . $cred->("p3"));
+
+$s = Test::Nginx::IMAP->new(
+	PeerAddr => '127.0.0.1:18085',
+	SSL => 1,
+	SSL_cert_file => "$d/end.crt",
+	SSL_key_file => "$d/end.key"
+);
+$s->ok('partial_chain optional - leaf cert accepted');
+$s->send('1 AUTHENTICATE PLAIN ' . $cred->("p4"));
+
+$s = Test::Nginx::IMAP->new(
+	PeerAddr => '127.0.0.1:18085',
+	SSL => 1,
+	SSL_cert_file => "$d/other.crt",
+	SSL_key_file => "$d/other.key"
+);
+$s->check(qr/BYE SSL certificate error/,
+	'partial_chain optional - unknown cert rejected');
 
 $t->stop();
 

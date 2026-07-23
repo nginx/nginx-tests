@@ -2,11 +2,11 @@
 
 # (C) Nginx, Inc.
 
-# Tests for stream ssl module, ssl_verify_client partial_chain.
+# Tests for stream ssl module, ssl_verify_partial_chain.
 #
-# Validates that ssl_verify_client partial_chain accepts a client certificate
-# whose chain terminates at a trusted intermediate CA, without requiring the
-# full chain of trust up to a root CA.
+# Validates that ssl_verify_partial_chain accepts a client certificate whose
+# chain terminates at a trusted intermediate CA, without requiring the full
+# chain of trust up to a root CA.
 
 ###############################################################################
 
@@ -27,7 +27,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/stream stream_ssl stream_return socket_ssl/)
-	->has_daemon('openssl')->plan(6);
+	->has_daemon('openssl')->plan(9);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -49,7 +49,8 @@ stream {
         listen  127.0.0.1:8080 ssl;
         return  $ssl_client_verify:$ssl_client_s_dn;
 
-        ssl_verify_client    partial_chain;
+        ssl_verify_client    on;
+        ssl_verify_partial_chain on;
         ssl_client_certificate int.crt;
     }
 
@@ -67,8 +68,18 @@ stream {
         listen  127.0.0.1:8082 ssl;
         return  $ssl_client_verify:$ssl_client_s_dn;
 
-        ssl_verify_client       partial_chain;
+        ssl_verify_client       on;
+        ssl_verify_partial_chain on;
         ssl_trusted_certificate int.crt;
+    }
+
+    server {
+        listen  127.0.0.1:8083 ssl;
+        return  $ssl_client_verify:$ssl_client_s_dn;
+
+        ssl_verify_client    optional;
+        ssl_verify_partial_chain on;
+        ssl_client_certificate int.crt;
     }
 }
 
@@ -163,7 +174,7 @@ $t->run();
 
 # --- partial_chain via ssl_client_certificate ---
 
-# no cert: connection is dropped (cert required like "on")
+# no cert: connection is dropped (cert required with verify_client on)
 is(get(8080), '', 'partial_chain - no cert');
 
 # leaf cert signed by trusted intermediate: accepted
@@ -187,6 +198,12 @@ like(get(8082, 'end'), qr/SUCCESS/,
 is(get(8082, 'other'), '',
 	'partial_chain trusted_certificate - unknown cert rejected');
 
+# --- partial_chain with optional client verification ---
+
+like(get(8083), qr/NONE:/, 'partial_chain optional - no cert');
+like(get(8083, 'end'), qr/SUCCESS/, 'partial_chain optional - leaf cert accepted');
+is(get(8083, 'other'), '', 'partial_chain optional - unknown cert rejected');
+
 ###############################################################################
 
 sub get {
@@ -205,4 +222,3 @@ sub get {
 }
 
 ###############################################################################
-
