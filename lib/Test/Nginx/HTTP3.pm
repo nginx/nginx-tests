@@ -278,11 +278,11 @@ sub ping {
 }
 
 sub reset_stream {
-	my ($self, $sid, $code) = @_;
-	my $final_size = $self->{streams}{$sid}{sent};
+	my ($self, $sid, $code, $final_size) = @_;
+	$final_size = $self->{streams}{$sid}{sent} if !defined $final_size;
 	my $frame = "\x04" . build_int($sid) . build_int($code)
 		. build_int($final_size);
-	$self->{socket}->syswrite($self->encrypt_aead($frame, 3));
+	$self->raw_write($frame);
 }
 
 sub stop_sending {
@@ -492,7 +492,7 @@ sub h3_body {
 
 	$buf .= pack_body($self, $body) if defined $body;
 
-	my $offset = $self->{streams}{$sid}{sent};
+	my $offset = $extra->{offset} || $self->{streams}{$sid}{sent};
 
 	$self->{streams}{$sid}{sent} += length($buf);
 	$self->raw_write($self->build_stream($buf,
