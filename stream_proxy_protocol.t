@@ -26,7 +26,7 @@ use Test::Nginx::Stream qw/ stream /;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/stream/)->plan(2)
+my $t = Test::Nginx->new()->has(qw/stream stream_realip/)
 	->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
@@ -51,12 +51,29 @@ stream {
         proxy_pass      127.0.0.1:8081;
         proxy_protocol  off;
     }
+
+    server {
+        listen          127.0.0.1:8083 proxy_protocol;
+        set_real_ip_from 127.0.0.1;
+        proxy_pass      127.0.0.1:8081;
+    }
+
+    server {
+        listen          127.0.0.1:8084;
+        proxy_pass      [::1]:%%PORT_8085%%;
+    }
+
+    server {
+        listen          [::1]:%%PORT_8085%% proxy_protocol;
+        set_real_ip_from ::1;
+        proxy_pass      127.0.0.1:8081;
+    }
 }
 
 EOF
 
 $t->run_daemon(\&stream_daemon);
-$t->run();
+$t->try_run('no inet6 support')->plan(4);
 $t->waitforsocket('127.0.0.1:' . port(8081));
 
 ###############################################################################
@@ -68,6 +85,13 @@ my $sp = $s->sockport();
 is($data, "PROXY TCP4 127.0.0.1 127.0.0.1 $sp $dp${CRLF}close", 'protocol on');
 
 is(stream('127.0.0.1:' . port(8082))->io('close'), 'close', 'protocol off');
+
+is(stream('127.0.0.1:' . port(8083))->io(
+	"PROXY TCP6 2001:db8::1 2001:db8::2 1234 5678${CRLF}close"),
+	"PROXY UNKNOWN${CRLF}close", 'protocol mixed address families');
+
+is(stream('127.0.0.1:' . port(8084))->io('close'),
+	"PROXY UNKNOWN${CRLF}close", 'protocol reverse mixed address families');
 
 ###############################################################################
 
