@@ -85,7 +85,7 @@ $t->write_file('time', '');
 $t->write_file('safari', '');
 $t->write_file('none', '');
 $t->write_file('zero', '');
-$t->run()->plan(21);
+$t->run()->plan(23);
 
 ###############################################################################
 
@@ -144,6 +144,28 @@ read_keepalive($s);
 shutdown($s, 1);
 
 ok(IO::Select->new($s)->can_read(3), 'EOF in discard body');
+
+# a connection option that merely contains a standard option as a substring
+# does not select the connection type
+
+TODO: {
+local $TODO = 'not yet';
+
+unlike(http(<<EOF), qr/Connection: close/, 'close extension');
+GET / HTTP/1.1
+Host: localhost
+Connection: x-close
+
+EOF
+
+unlike(http(<<EOF), qr/Connection: keep-alive/, 'keep-alive extension');
+GET / HTTP/1.0
+Host: localhost
+Connection: x-keep-alive
+
+EOF
+
+}
 
 $t->stop();
 
