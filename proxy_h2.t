@@ -102,7 +102,7 @@ $t->write_file('stub', '');
 $t->run_daemon(\&http_daemon);
 $t->waitforsocket('127.0.0.1:' . port(8081));
 
-$t->try_run('no proxy_http_version 2')->plan(28);
+$t->try_run('no proxy_http_version 2')->plan(30);
 
 ###############################################################################
 
@@ -116,6 +116,16 @@ like(http_get('/var?b=127.0.0.1:' . port(8081) . '/'), qr/SEE-THIS/,
 like(http_get('/var?b=u/'), qr/SEE-THIS/, 'proxy with variables to upstream');
 
 like(http_get('/timeout'), qr/200 OK/, 'proxy connect timeout');
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.4');
+
+like(http_get('/window-zero-stream'), qr/502 Bad Gateway/,
+	'zero window update - stream');
+like(http_get('/window-zero-connection'), qr/502 Bad Gateway/,
+	'zero window update - connection');
+
+}
 
 my $re = qr/(\d\.\d{3})/;
 my $p0 = port(8081);
@@ -219,6 +229,14 @@ sub http_daemon {
 				{ name => ':status', value => '200' },
 			]}, $sid);
 			$c->h2_body('SEE-THIS');
+
+		} elsif ($uri =~ /^\/window-zero-(stream|connection)$/) {
+			$c->start_chain();
+			$c->h2_window(0, $1 eq 'stream' ? $sid : 0);
+			$c->new_stream({ headers => [
+				{ name => ':status', value => '200' },
+			]}, $sid);
+			$c->send_chain();
 
 		} elsif ($uri eq '/multi') {
 			$c->new_stream({ body_more => 1, headers => [

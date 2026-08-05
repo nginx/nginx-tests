@@ -24,7 +24,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http rewrite http_v2 grpc/)
-	->has(qw/upstream_keepalive/)->plan(148);
+	->has(qw/upstream_keepalive/)->plan(150);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -704,6 +704,31 @@ ok($frame->{headers}{'grpc-status'}, 'keepalive 3 - grpc error, rst');
 $frames = $f->{http_start}('/KeepAlive', reuse => 1);
 ($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
 ok($frame, 'keepalive 3 - connection reused');
+
+undef $f;
+$f = grpc();
+
+# zero WINDOW_UPDATE increments
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.4');
+
+$f->{http_start}('/');
+$f->{update_sid}(0);
+$frames = $f->{http_end}();
+($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
+is($frame->{headers}{':status'}, 502, 'zero window update - stream');
+
+undef $f;
+$f = grpc();
+
+$f->{http_start}('/');
+$f->{update}(0);
+$frames = $f->{http_end}();
+($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
+is($frame->{headers}{':status'}, 502, 'zero window update - connection');
+
+}
 
 undef $f;
 $f = grpc();
