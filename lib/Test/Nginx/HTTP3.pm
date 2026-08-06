@@ -507,6 +507,19 @@ sub pack_body {
 	$buf .= $body;
 }
 
+sub h3_frame {
+	my ($self, $type, $body, $sid, $extra) = @_;
+
+	$body = '' unless defined $body;
+	my $buf = build_int($type) . build_int(length($body)) . $body;
+
+	my $offset = $extra->{offset} || $self->{streams}{$sid}{sent};
+
+	$self->{streams}{$sid}{sent} += length($buf);
+	$self->raw_write($self->build_stream($buf,
+		start => $extra->{body_more}, sid => $sid, offset => $offset));
+}
+
 sub h3_max_data {
 	my ($self, $val, $stream) = @_;
 
