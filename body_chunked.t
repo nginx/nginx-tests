@@ -22,7 +22,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(18);
+my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(19);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -161,6 +161,25 @@ like(
 	),
 	qr/400 Bad/, 'runaway chunk discard'
 );
+
+# an overflowing chunk size is detected when it is split from the rest, and does
+# not wait for more data
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.4');
+
+like(
+	http(
+		'POST / HTTP/1.1' . CRLF
+		. 'Host: localhost' . CRLF
+		. 'Connection: close' . CRLF
+		. 'Transfer-Encoding: chunked' . CRLF . CRLF
+		. '7ffffffffffffff7'
+	),
+	qr/400 Bad/, 'chunk size overflow'
+);
+
+}
 
 # proxy_next_upstream
 
