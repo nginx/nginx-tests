@@ -21,7 +21,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http/)->plan(4)
+my $t = Test::Nginx->new()->has(qw/http/)->plan(7)
 	->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
@@ -69,5 +69,31 @@ $r = http("GET / HTTP/1.1" . CRLF
 
 like($r, qr/X-Host: localhost\x0d?\x0a/, 'trailing HTAB stripped');
 like($r, qr/X-Test: see-this\x0d?\x0a/, 'leading and trailing HTAB stripped');
+
+###############################################################################
+
+# Transfer-Encoding and Content-Length OWS coverage.
+#
+# Tab characters around header values are HTTP/1.x OWS (RFC 9112).  After
+# OWS is stripped, Content-Length and Transfer-Encoding must be parsed
+# against the same byte stream as nginx's downstream parsers would see.
+
+like(http("GET / HTTP/1.1" . CRLF
+	. "Host: localhost" . CRLF
+	. "Content-Length: \t0\t" . CRLF
+	. "Connection: close" . CRLF . CRLF),
+	qr/ 204 /, 'Content-Length with HTAB padding is accepted');
+
+like(http("POST / HTTP/1.1" . CRLF
+	. "Host: localhost" . CRLF
+	. "Content-Length:\t0" . CRLF
+	. "Connection: close" . CRLF . CRLF),
+	qr/ 204 /, 'Content-Length with leading HTAB is accepted');
+
+like(http("GET / HTTP/1.1" . CRLF
+	. "Host: localhost" . CRLF
+	. "Transfer-Encoding:\tchunked\t" . CRLF
+	. "Connection: close" . CRLF . CRLF),
+	qr/ 204 /, 'Transfer-Encoding chunked with HTAB padding is accepted');
 
 ###############################################################################
