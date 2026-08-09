@@ -619,12 +619,17 @@ $f->{http_end}();
 
 # misc tests
 
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.4');
+
 $frames = $f->{http_start}('/SetHost');
 ($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
-ok(!$frame->{headers}{':authority'}, 'set host - authority');
-is($frame->{headers}{'host'}, 'custom', 'set host - host');
+is($frame->{headers}{':authority'}, 'custom', 'set host - authority');
+ok(!$frame->{headers}{'host'}, 'set host - host');
 $f->{data}('Hello');
 $f->{http_end}();
+
+}
 
 $frames = $f->{http_start}('/SetArgs?f');
 ($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
