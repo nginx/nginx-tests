@@ -128,6 +128,10 @@ http {
                 return 204;
             }
         }
+
+        location /redirect {
+            rewrite ^ /x?a=1? last;
+        }
     }
 }
 
@@ -163,13 +167,14 @@ is(get('/regex?b=1'), 'regex b', 'predicate in regex location');
 
 is(get('/named?a=1'), 'named', 'named over predicate');
 
-is(get('/x?c=1'), 'c', 'predicate with nested locations');
 is(get('/c/exact?c=1&d=1'), 'c exact', 'exact in predicate location');
 is(get('/c/prefix?c=1'), 'c prefix', 'prefix in predicate location');
 is(get('/c/prefix?c=1&d=1'), 'c d', 'predicate over prefix in predicate');
 is(get('/c/regex?c=1&d=1'), 'c regex', 'regex over predicate in predicate');
 is(get('/x?c=1&d=1'), 'c d', 'predicate in predicate location');
 is(get('/c/if?c=2'), 'c if', 'if in predicate location');
+
+is(get('/redirect'), 'a', 'predicate after internal redirect');
 
 ###############################################################################
 
