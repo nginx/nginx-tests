@@ -3,7 +3,7 @@
 # (C) Eugene Grebenschikov
 # (C) Nginx, Inc.
 
-# Tests for predicate locations, proxy_pass, root, and alias directives.
+# Tests for predicate locations, additional tests.
 
 ###############################################################################
 
@@ -22,7 +22,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http rewrite proxy/);
+my $t = Test::Nginx->new()->has(qw/http rewrite proxy map/);
 
 plan(skip_all => 'not yet') unless $t->has_version('1.31.5');
 
@@ -37,6 +37,15 @@ events {
 
 http {
     %%TEST_GLOBALS_HTTP%%
+
+    map $uri $mapped {
+        /mapped  1;
+    }
+
+    map $uri $volatile {
+        volatile;
+        /volatile  1;
+    }
 
     server {
         listen       127.0.0.1:8080;
@@ -65,6 +74,30 @@ http {
             }
             return 204;
         }
+
+        location $arg_dir {
+            location /dir/ {
+                proxy_pass http://127.0.0.1:8081;
+            }
+        }
+
+        location /redirect/mapped {
+            rewrite ^ /mapped last;
+        }
+
+        location /redirect/volatile {
+            rewrite ^ /volatile last;
+        }
+
+        location $mapped {
+            add_header X-Location "mapped";
+            return 204;
+        }
+
+        location $volatile {
+            add_header X-Location "volatile";
+            return 204;
+        }
     }
 
     server {
@@ -83,7 +116,7 @@ EOF
 mkdir($t->testdir() . '/html');
 $t->write_file('html/t', 'SEE-THIS');
 
-$t->run()->plan(5);
+$t->run()->plan(11);
 
 ###############################################################################
 
@@ -99,5 +132,19 @@ like(http_get('/t?alias_try=1'), qr/SEE-THIS/,
 
 like(http_get('/sub/t?alias_nest=1'), qr/SEE-THIS/,
 	'alias in nested prefix under predicate location');
+
+like(http_get('/dir/?dir=1'), qr/X-Location: proxied/,
+	'slash prefix in predicate location');
+
+like(http_get('/dir?dir=1'), qr/301 Moved/,
+	'auto redirect in predicate location');
+
+like(http_get('/mapped'), qr/X-Location: mapped/, 'map predicate');
+like(http_get('/volatile'), qr/X-Location: volatile/, 'volatile map predicate');
+
+like(http_get('/redirect/mapped'), qr/404 Not Found/,
+	'map predicate cached before redirect');
+like(http_get('/redirect/volatile'), qr/X-Location: volatile/,
+	'volatile map after redirect');
 
 ###############################################################################
