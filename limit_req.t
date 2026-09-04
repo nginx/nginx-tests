@@ -21,7 +21,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http limit_req/)->plan(6);
+my $t = Test::Nginx->new()->has(qw/http limit_req/)->plan(8);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -38,12 +38,18 @@ http {
     limit_req_zone  $binary_remote_addr  zone=one:1m   rate=2r/s;
     limit_req_zone  $binary_remote_addr  zone=long:1m  rate=2r/s;
     limit_req_zone  $binary_remote_addr  zone=fast:1m  rate=1000r/s;
+    limit_req_zone  $http_x_key          zone=key:1m   rate=1000r/s;
+
+    large_client_header_buffers  4 128k;
 
     server {
         listen       127.0.0.1:8080;
         server_name  localhost;
         location / {
             limit_req    zone=one  burst=1  nodelay;
+        }
+        location /keyreq.html {
+            limit_req    zone=key  burst=100;
         }
         location /status {
             limit_req    zone=one  burst=1  nodelay;
@@ -64,6 +70,7 @@ EOF
 $t->write_file('test1.html', 'XtestX');
 $t->write_file('long.html', "1234567890\n" x (1 << 16));
 $t->write_file('fast.html', 'XtestX');
+$t->write_file('keyreq.html', 'XtestX');
 $t->run();
 
 ###############################################################################
@@ -93,5 +100,30 @@ like(http_get('/test1.html'), qr/^HTTP\/1.. 200 /m, 'rejects not counted');
 http_get('/fast.html');
 select undef, undef, undef, 0.1;
 like(http_get('/fast.html'), qr/^HTTP\/1.. 200 /m, 'negative excess');
+
+# a key within the length limit is not rejected, while an overlong key is
+# rejected instead of silently skipping the limit
+
+unlike(http_key('/keyreq.html', 'short'), qr/^HTTP\/1.. 503 /m, 'key passed');
+
+TODO: {
+local $TODO = 'not yet';
+
+like(http_key('/keyreq.html', 'x' x 65600), qr/^HTTP\/1.. 503 /m,
+	'overlong key rejected');
+
+}
+
+###############################################################################
+
+sub http_key {
+	my ($uri, $key) = @_;
+	return http(<<EOF);
+GET $uri HTTP/1.0
+Host: localhost
+X-Key: $key
+
+EOF
+}
 
 ###############################################################################
