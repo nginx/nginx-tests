@@ -25,8 +25,8 @@ use Test::Nginx::HTTP2;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http http_v2 proxy rewrite charset gzip/)
-	->plan(143);
+my $t = Test::Nginx->new()
+	->has(qw/http http_v2 access proxy rewrite charset gzip/)->plan(144);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -69,6 +69,13 @@ http {
         location /chunk_size {
             http2_chunk_size 1;
             return 200 'body';
+        }
+        location /query {
+            limit_except QUERY {
+                deny all;
+            }
+
+            proxy_pass http://127.0.0.1:8082/;
         }
         location /redirect {
             error_page 405 /;
@@ -317,6 +324,15 @@ $frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
 
 ($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
 is($frame->{headers}->{':status'}, 405, 'TRACE - not allowed');
+
+# QUERY
+
+$s = Test::Nginx::HTTP2->new();
+$sid = $s->new_stream({ method => 'QUERY', path => '/query' });
+$frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
+
+($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
+is($frame->{headers}->{':status'}, 200, 'QUERY');
 
 # range filter
 
