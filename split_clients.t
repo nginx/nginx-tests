@@ -22,7 +22,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http split_clients/)->plan(1);
+my $t = Test::Nginx->new()->has(qw/http split_clients/)->plan(2);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -42,12 +42,20 @@ http {
         *      ".three";
     }
 
+    split_clients $uri $utf8_variant {
+        *  "utf8";
+    }
+
     server {
         listen       127.0.0.1:8080;
         server_name  localhost;
 
         location / {
             index index${variant}.html;
+        }
+
+        location /a {
+            return 200 $utf8_variant;
         }
     }
 }
@@ -65,6 +73,7 @@ $t->run();
 # NB: split_clients distribution is a subject to implementation details
 
 like(many('/', 20), qr/first: 12, second: 2, third: 6/, 'split');
+like(http_get("/a\xC3\xA9"), qr/utf8/, 'utf8 key');
 
 ###############################################################################
 
