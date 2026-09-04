@@ -1485,6 +1485,21 @@ sub parse_frames {
 			$frame->{uni} = 1 if $type == 19;
 			$offset += $len;
 		}
+		if ($type == 20) {
+			$frame->{type} = 'DATA_BLOCKED';
+			my ($len, $val) = parse_int(substr($buf, $offset));
+			$frame->{limit} = $val;
+			$offset += $len;
+		}
+		if ($type == 21) {
+			$frame->{type} = 'STREAM_DATA_BLOCKED';
+			my ($len, $val) = parse_int(substr($buf, $offset));
+			$frame->{sid} = $val;
+			$offset += $len;
+			($len, $val) = parse_int(substr($buf, $offset));
+			$frame->{limit} = $val;
+			$offset += $len;
+		}
 		if ($type == 24) {
 			$frame->{type} = 'NCID';
 			my ($len, $val) = parse_int(substr($buf, $offset));
