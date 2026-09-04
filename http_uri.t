@@ -22,7 +22,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http rewrite/)->plan(19)
+my $t = Test::Nginx->new()->has(qw/http rewrite/)->plan(25)
 	->write_file_expand('nginx.conf', <<'EOF')->run();
 
 %%TEST_GLOBALS%%
@@ -56,9 +56,21 @@ like(http_get('/foo/bar%'), qr/400 Bad/, 'percent');
 like(http_get('/foo/bar%1'), qr/400 Bad/, 'percent digit');
 
 like(http_get('/foo/bar/.?args'), qr!x /foo/bar/ x!, 'dot args');
-like(http_get('/foo/bar/.#frag'), qr!x /foo/bar/ x!, 'dot frag');
+my $dot_frag = http_get('/foo/bar/.#frag');
+like($dot_frag, qr!x /foo/bar/ x!, 'dot frag');
+like($dot_frag, qr!\r\nX-Request-URI: z /foo/bar/\. z\r\n!,
+	'dot frag request_uri');
 like(http_get('/foo/bar/..?args'), qr!x /foo/ x!, 'dot dot args');
-like(http_get('/foo/bar/..#frag'), qr!x /foo/ x!, 'dot dot frag');
+like(http_get('/foo/bar#frag'), qr!\r\nX-Request-URI: z /foo/bar z\r\n!,
+	'frag request_uri');
+like(http_get('/foo/#frag'), qr!\r\nX-Request-URI: z /foo/ z\r\n!,
+	'slash frag request_uri');
+like(http_get('#frag'), qr!400 Bad!,
+	'just fragment');
+my $dot_dot_frag = http_get('/foo/bar/..#frag');
+like($dot_dot_frag, qr!x /foo/ x!, 'dot dot frag uri');
+like($dot_dot_frag, qr!\r\nX-Request-URI: z /foo/bar/\.\. z\r\n!,
+	'dot dot frag request_uri');
 like(http_get('/foo/bar/.'), qr!x /foo/bar/ x!, 'trailing dot');
 like(http_get('/foo/bar/..'), qr!x /foo/ x!, 'trailing dot dot');
 
@@ -74,6 +86,9 @@ like(http_get('http://localhost:8080/'), qr!x / x!, 'port slash');
 like(http_get('http://localhost:8080?args'), qr!x / x.*y args y!ms,
 	'port args');
 like(http_get('http://localhost:8080?args#frag'), qr!x / x.*y args y!ms,
+	'port args and frag');
+like(http_get('http://localhost:8080?args#frag'),
+	qr!\r\nX-Request-URI: z \?args z\r\n!m,
 	'port args and frag');
 
 like(http_get('/ /'), qr/400 Bad/, 'space');
