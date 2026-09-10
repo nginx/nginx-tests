@@ -23,8 +23,9 @@ use Test::Nginx::HTTP3;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http http_v3 proxy rewrite cryptx/)
-	->has_daemon('openssl')->plan(75)
+my $t = Test::Nginx->new()
+	->has(qw/http http_v3 access proxy rewrite cryptx/)
+	->has_daemon('openssl')->plan(76)
 	->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
@@ -75,6 +76,14 @@ http {
             add_header X-Cookie-a $cookie_a;
             add_header X-Cookie-c $cookie_c;
             return 200;
+        }
+
+        location /query {
+            limit_except QUERY {
+                deny all;
+            }
+
+            proxy_pass http://127.0.0.1:8083/set-cookie;
         }
     }
 
@@ -144,6 +153,15 @@ $t->write_file('t2.html', 'SEE-THIS');
 ###############################################################################
 
 my ($s, $sid, $frames, $frame);
+
+# QUERY
+
+$s = Test::Nginx::HTTP3->new();
+$sid = $s->new_stream({ method => 'QUERY', path => '/query' });
+$frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
+
+($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
+is($frame->{headers}->{':status'}, 200, 'QUERY');
 
 # 4.5.2. Indexed Field Line
 
