@@ -25,7 +25,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http proxy upstream_keepalive ssi rewrite/)
-	->plan(49)->write_file_expand('nginx.conf', <<'EOF');
+	->plan(51)->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
 
@@ -206,6 +206,20 @@ like(http_get('/unbuffered/closed2'), qr/200 OK/, 'unbuffered closed 2');
 like(http_get('/inmemory/closed1'), qr/200 OK/, 'inmemory closed 1');
 like(http_get('/inmemory/closed2'), qr/200 OK/, 'inmemory closed 2');
 
+# a Connection option that merely contains "close" as a substring does not
+# prevent the upstream connection from being reused
+
+like($r = http_get('/extension1'), qr/SEE-THIS/, 'connection extension');
+$r =~ m/X-Connection: (\d+)/; $n = $1;
+
+TODO: {
+local $TODO = 'not yet';
+
+like(http_get('/extension2'), qr/X-Connection: $n/,
+	'connection extension reused');
+
+}
+
 # check for errors, shouldn't be any
 
 like(`grep -F '[error]' ${\($t->testdir())}/error.log`, qr/^$/s, 'no errors');
@@ -327,6 +341,16 @@ sub http_daemon {
 				print $client
 					"0" . CRLF . CRLF
 					unless $headers =~ /^HEAD/i;
+
+			} elsif ($uri =~ m/extension/) {
+				print $client
+					"HTTP/1.1 200 OK" . CRLF .
+					"X-Request: $rcount" . CRLF .
+					"X-Connection: $ccount" . CRLF .
+					"Connection: x-close" . CRLF .
+					"Content-Length: 26" . CRLF . CRLF;
+				print $client "TEST-OK-IF-YOU-SEE-THIS" .
+					sprintf("%03d", $ccount);
 
 			} elsif ($uri =~ m/closed/) {
 				print $client
