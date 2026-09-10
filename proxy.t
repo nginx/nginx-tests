@@ -21,7 +21,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy/)->plan(28);
+my $t = Test::Nginx->new()->has(qw/http proxy/)->plan(31);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -72,6 +72,27 @@ http {
             proxy_connect_timeout 2s;
         }
 
+        location /hdrt {
+            proxy_pass http://127.0.0.1:8081/header;
+            proxy_read_timeout 5s;
+            proxy_connect_timeout 2s;
+            proxy_header_timeout 500ms;
+        }
+
+        location /hdrt/replace {
+            proxy_pass http://127.0.0.1:8081/header;
+            proxy_read_timeout 500ms;
+            proxy_connect_timeout 2s;
+            proxy_header_timeout 3s;
+        }
+
+        location /hdrt/body {
+            proxy_pass http://127.0.0.1:8081/body;
+            proxy_read_timeout 3s;
+            proxy_connect_timeout 2s;
+            proxy_header_timeout 500ms;
+        }
+
         location /time/ {
             proxy_pass http://127.0.0.1:8081/;
             access_log %%TESTDIR%%/time.log time;
@@ -111,6 +132,12 @@ like(http_get('/var?b=127.0.0.1:' . port(8081) . '/'), qr/SEE-THIS/,
 like(http_get('/var?b=u/'), qr/SEE-THIS/, 'proxy with variables to upstream');
 
 like(http_get('/timeout'), qr/200 OK/, 'proxy connect timeout');
+
+like(http_get('/hdrt'), qr/504 /, 'proxy_header_timeout fires');
+like(http_get('/hdrt/replace'), qr/SEE-THIS/,
+	'proxy_header_timeout replaces read_timeout in header phase');
+like(http_get('/hdrt/body'), qr/AND-THIS/,
+	'proxy_header_timeout does not apply to body phase');
 
 my $re = qr/(\d\.\d{3})/;
 my $p0 = port(8080);
