@@ -415,6 +415,27 @@ sub cancel_push {
 		. build_int($offset) . build_int($length) . $buf);
 }
 
+# RFC 9218: send a PRIORITY_UPDATE frame on the client control stream.
+# $type is the frame type (0xf0700 for request streams, 0xf0701 for pushes);
+# $id is the prioritized element id; $value is the priority field value.
+# When $value is undef the frame carries only the element id, and when $id is
+# undef the frame payload is empty (used to test malformed frames).
+sub priority_update {
+	my ($self, $type, $id, $value) = @_;
+
+	my $payload = defined $id ? build_int($id) : '';
+	$payload .= $value if defined $value;
+
+	my $buf = build_int($type) . build_int(length($payload)) . $payload;
+
+	my $offset = $self->{control_offset};
+	my $length = length($buf);
+
+	$self->{control_offset} += $length;
+	$self->raw_write("\x0e\x06"
+		. build_int($offset) . build_int($length) . $buf);
+}
+
 sub build_new_stream {
 	my ($self, $uri, $stream) = @_;
 	my ($input, $buf);
