@@ -34,10 +34,16 @@ sub new {
 	require Crypt::Digest;
 	require Crypt::Mac::HMAC;
 
-	$self->{socket} = IO::Socket::INET->new(
+	my %socket = (
 		Proto => "udp",
 		PeerAddr => '127.0.0.1:' . port($port || 8980),
 	);
+
+	$socket{LocalAddr} = $extra{local_addr} if $extra{local_addr};
+	$socket{LocalPort} = $extra{local_port} if $extra{local_port};
+
+	$self->{socket} = IO::Socket::INET->new(%socket);
+
 
 	$self->{repeat} = 0;
 	$self->{token} = $extra{token} || '';
