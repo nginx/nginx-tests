@@ -24,7 +24,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http dav/)->plan(94);
+my $t = Test::Nginx->new()->has(qw/http dav/)->plan(103);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -524,6 +524,55 @@ my $mode = (stat($t->testdir() . '/access/subdir'))[2] & 07777;
 ok($mode & 0755, 'dav_access mkcol permissions');
 
 }
+
+# If-Unmodified-Since precondition
+# RFC 9110, 13.1.4: if the last modification date is later than the
+# If-Unmodified-Since date, the server MUST NOT perform the request
+# and MUST respond with 412 Precondition Failed.
+
+$t->write_file('iums_test', 'original');
+
+$r = http_put('/iums_test', 'updated',
+    'If-Unmodified-Since: Sun, 01 Jan 2020 00:00:00 GMT');
+like($r, qr/412 Precondition Failed/,
+    'put with past if-unmodified-since');
+is($t->read_file('iums_test'), 'original',
+    'put unchanged after 412');
+
+$t->write_file('iums_test2', 'original2');
+
+$r = http_put('/iums_test2', 'updated2',
+    'If-Unmodified-Since: Thu, 01 Jan 2030 00:00:00 GMT');
+like($r, qr/204 No Content/,
+    'put with future if-unmodified-since');
+is($t->read_file('iums_test2'), 'updated2',
+    'put updated after future iums');
+
+$t->write_file('iums_delete', 'tobedeleted');
+
+$r = http_delete('/iums_delete',
+    'If-Unmodified-Since: Sun, 01 Jan 2020 00:00:00 GMT');
+like($r, qr/412 Precondition Failed/,
+    'delete with past if-unmodified-since');
+ok(-f $t->testdir() . '/iums_delete',
+    'delete file preserved after 412');
+
+$t->write_file('iums_copy_src', 'copydata');
+$t->write_file('iums_copy_dst', 'originaldst');
+
+$r = http_copy('/iums_copy_src', '/iums_copy_dst',
+    'If-Unmodified-Since: Sun, 01 Jan 2020 00:00:00 GMT');
+like($r, qr/412 Precondition Failed/,
+    'copy to existing with past if-unmodified-since');
+is($t->read_file('iums_copy_dst'), 'originaldst',
+    'copy dest unchanged after 412');
+
+$t->write_file('iums_invalid_date', 'original');
+
+$r = http_put('/iums_invalid_date', 'updated',
+    'If-Unmodified-Since: this-is-not-a-date');
+like($r, qr/204 No Content/,
+    'put with invalid if-unmodified-since');
 
 ###############################################################################
 
