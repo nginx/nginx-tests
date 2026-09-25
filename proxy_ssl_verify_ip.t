@@ -23,8 +23,9 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http http_ssl proxy/)->plan(8)
-    ->has_daemon('openssl')->write_file_expand('nginx.conf', <<'EOF');
+my $t = Test::Nginx->new()->has(qw/http http_ssl proxy/)
+	->has_daemon('openssl')->plan(8)
+	->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
 
@@ -213,14 +214,14 @@ $t->run();
 
 # subjectAltName
 
-TODO:
-{
+TODO: {
 local $TODO = 'not yet' unless $t->has_version('1.31.7');
 
 like(http_get('/ipv4'), qr/200 OK/ms, 'verify ipv4');
 like(http_get('/ipv6'), qr/200 OK/ms, 'verify ipv6');
 like(http_get('/ipv4/dns'), qr/502 Bad/ms, 'verify ipv4 dns fail');
 like(http_get('/ipv6/dns'), qr/502 Bad/ms, 'verify ipv6 dns fail');
+
 }
 
 like(http_get('/ipv4/fail'), qr/502 Bad/ms, 'verify ipv4 fail');
@@ -228,12 +229,12 @@ like(http_get('/ipv6/fail'), qr/502 Bad/ms, 'verify ipv6 fail');
 
 # commonName
 
-TODO:
-{
+TODO: {
 local $TODO = 'not yet' unless $t->has_version('1.31.7');
 
 like(http_get('/cn/ipv4'), qr/502 Bad/ms, 'verify cn ipv4 fail');
 like(http_get('/cn/ipv6'), qr/502 Bad/ms, 'verify cn ipv6 fail');
+
 }
 
 ###############################################################################
