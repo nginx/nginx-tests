@@ -1,9 +1,9 @@
 #!/usr/bin/perl
 
-# (C) Andrey Zelenkov
+# (C) Eugene Grebenschikov
 # (C) Nginx, Inc.
 
-# Tests for stream geo module with binary base.
+# Tests for stream geo module, include directive.
 
 ###############################################################################
 
@@ -25,6 +25,8 @@ select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/stream stream_return stream_geo/);
 
+plan(skip_all => 'not yet') until $t->has_version('1.29.8');
+
 $t->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
@@ -37,36 +39,26 @@ events {
 stream {
     %%TEST_GLOBALS_STREAM%%
 
-    geo $geo_base_create {
-        ranges;
-        include  base.conf;
-    }
-
-    geo $geo_base_include {
-        ranges;
-        include  base.conf;
+    geo $geo_inc_wildcard {
+        include       geo*.conf;
     }
 
     server {
         listen  127.0.0.1:8080;
-        return  "geo_base_create:$geo_base_create
-                 geo_base_include:$geo_base_include";
+        return  "geo_inc_wildcard:$geo_inc_wildcard";
     }
+
 }
 
 EOF
 
-$t->write_file('base.conf', join('', map {
-	"127." . $_/256/256 % 256 . "." . $_/256 % 256 . "." . $_ % 256 .
-	"-127." . $_/256/256 % 256 . "." . $_/256 % 256 . "." .$_ % 256 . " " .
-	($_ == 1 ? "loopback" : "range$_") . ";" } (0 .. 100000)));
+$t->write_file('geo_inc_wildcard.conf', '127.0.0.0/8  loopback;');
 
-$t->run()->plan(2);
+$t->run()->plan(1);
 
 ###############################################################################
 
 my %data = stream('127.0.0.1:' . port(8080))->read() =~ /(\w+):(\w+)/g;
-is($data{geo_base_create}, 'loopback', 'geo binary base create');
-is($data{geo_base_include}, 'loopback', 'geo binary base include');
+is($data{geo_inc_wildcard}, 'loopback', 'geo');
 
 ###############################################################################
