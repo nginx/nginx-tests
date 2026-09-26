@@ -39,7 +39,6 @@ events {
 http {
     %%TEST_GLOBALS_HTTP%%
 
-    add_header X-Verify x$ssl_client_verify:${ssl_client_cert}x;
     add_header X-Protocol $ssl_protocol;
 
     ssl_session_cache shared:SSL:1m;
@@ -48,6 +47,7 @@ http {
     server {
         listen       127.0.0.1:8443 ssl;
         server_name  trusted;
+        return 200 x$ssl_client_verify:${ssl_client_cert}x;
 
         ssl_certificate_key 1.example.com.key;
         ssl_certificate 1.example.com.crt;
