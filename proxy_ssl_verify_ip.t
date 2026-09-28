@@ -140,6 +140,8 @@ http {
 
 EOF
 
+my $has_libressl = `openssl version 2>&1` =~ /LibreSSL/;
+
 $t->write_file('openssl.1.example.com.conf', <<EOF);
 [ req ]
 prompt = no
@@ -177,6 +179,7 @@ distinguished_name = req_distinguished_name
 commonName=[::1]
 EOF
 
+my $ipv6_dns = $has_libressl ? 'skipped' : '[::1]';
 $t->write_file('openssl.4.example.com.conf', <<EOF);
 [ req ]
 prompt = no
@@ -189,7 +192,7 @@ x509_extensions = v3_req
 commonName=no.match.example.com
 
 [ v3_req ]
-subjectAltName = DNS:127.0.0.1,DNS:[::1]
+subjectAltName = DNS:127.0.0.1,DNS:$ipv6_dns
 EOF
 
 my $d = $t->testdir();
@@ -220,7 +223,13 @@ local $TODO = 'not yet' unless $t->has_version('1.31.7');
 like(http_get('/ipv4'), qr/200 OK/ms, 'verify ipv4');
 like(http_get('/ipv6'), qr/200 OK/ms, 'verify ipv6');
 like(http_get('/ipv4/dns'), qr/502 Bad/ms, 'verify ipv4 dns fail');
+
+SKIP: {
+skip 'LibreSSL: not allowed IPv6 in DNS entry', 1 if $has_libressl;
+
 like(http_get('/ipv6/dns'), qr/502 Bad/ms, 'verify ipv6 dns fail');
+
+}
 
 }
 
