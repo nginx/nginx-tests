@@ -41,6 +41,8 @@ http {
         listen       127.0.0.1:8080;
         server_name  localhost;
 
+        large_client_header_buffers 4 32k;
+
         location / { }
 
         location /merge/ {
@@ -143,6 +145,16 @@ is(order('u=3', 'u=0, x=:a:'), '1 3', 'invalid base64');
 
 is(order('u=3', 'u=0, x="' . ('a' x 1025) . '"'), '1 3', 'string too long');
 is(order('u=3', 'u=0, x=' . ('a' x 513)), '1 3', 'token too long');
+is(order('u=3', join ', ', 'u=0', map { "x$_=1" } (1 .. 1024)), '1 3',
+	'too many members');
+
+# RFC 8941 requires 16384 octets after decoding, that is 21848 characters
+# 21849 does not decode
+
+is(order('u=3', 'u=0, x=:' . ('A' x 21848) . ':'), '3 1',
+	'byte sequence at the RFC minimum');
+is(order('u=3', 'u=0, x=:' . ('A' x 21850) . ':'), '1 3',
+	'byte sequence over the limit');
 
 # every bare item type has to parse before "u=0" can be used
 
@@ -194,26 +206,6 @@ $s = stalled(Test::Nginx::HTTP2->new());
 $s->h2_priority_update(3, ' u=0');
 
 is(data_order($s), '3 1', 'leading space');
-
-$s = stalled(Test::Nginx::HTTP2->new());
-$s->h2_priority_update(3, join ', ', 'u=0', map { "x$_=1" } (1 .. 1024));
-
-is(data_order($s), '1 3', 'too many members');
-
-# 3.3.5.  Byte Sequences
-#   Parsers MUST support Byte Sequences with at least 16384 octets after
-#   decoding.
-# 21848 base64 characters decode to that; the limit is on the encoded length.
-
-$s = stalled(Test::Nginx::HTTP2->new());
-$s->h2_priority_update(3, 'u=0, x=:' . ('A' x 21848) . ':');
-
-is(data_order($s), '3 1', 'byte sequence at the RFC minimum');
-
-$s = stalled(Test::Nginx::HTTP2->new());
-$s->h2_priority_update(3, 'u=0, x=:' . ('A' x 21849) . ':');
-
-is(data_order($s), '1 3', 'byte sequence over the limit');
 
 # a split frame is reassembled, one over the state buffer is skipped
 
