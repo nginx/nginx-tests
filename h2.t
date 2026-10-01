@@ -26,7 +26,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http http_v2 proxy rewrite charset gzip/)
-	->plan(143);
+	->plan(144);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -304,6 +304,16 @@ is($frame, undef, 'HEAD - no body');
 
 $s = Test::Nginx::HTTP2->new();
 $sid = $s->new_stream({ method => 'CONNECT' });
+$frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
+
+($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
+is($frame->{headers}->{':status'}, 400, 'CONNECT with scheme and path');
+
+$s = Test::Nginx::HTTP2->new();
+$sid = $s->new_stream({ headers => [
+	{ name => ':method', value => 'CONNECT', mode => 1 },
+	{ name => ':authority', value => 'localhost:' . port(8080),
+		mode => 1 }]});
 $frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
 
 ($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
