@@ -22,7 +22,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(18);
+my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(21);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -71,6 +71,10 @@ http {
             proxy_pass http://127.0.0.1:8081;
         }
         location /discard {
+            return 200 "TEST\n";
+        }
+        location /discard-large {
+            client_max_body_size 1k;
             return 200 "TEST\n";
         }
         location /next {
@@ -133,6 +137,13 @@ like(http_get_body('/discard', '0123456789', '0123456789' x 128,
 like(http_get_body('/discard', '0123456789' x 128, '0123456789' x 512,
 	'0123456789', 'foobar'), qr/(TEST.*){4}/ms,
 	'chunked body discard 2');
+
+like(http_chunked_body('/discard-large', 'A' x 512, 'B' x 512),
+	qr/ 200 /, 'chunked body discard at limit');
+like(http_chunked_body('/discard-large', 'A' x 1025),
+	qr/ 413 /, 'chunked body discard too large');
+like(http_chunked_body('/discard-large', 'A' x 512, 'B' x 512, 'C'),
+	qr/ 413 /, 'chunked body discard too large in multiple chunks');
 
 # invalid chunks
 
@@ -215,6 +226,21 @@ sub http_get_body {
 		. "Transfer-Encoding: chunked" . CRLF . CRLF
 		. sprintf("%x", length $last) . CRLF
 		. $last . CRLF
+		. "0" . CRLF . CRLF
+	);
+}
+
+sub http_chunked_body {
+	my ($uri, @chunks) = @_;
+
+	return http(
+		"POST $uri HTTP/1.1" . CRLF
+		. "Host: localhost" . CRLF
+		. "Connection: close" . CRLF
+		. "Transfer-Encoding: chunked" . CRLF . CRLF
+		. join('', map {
+			sprintf("%x", length $_) . CRLF . $_ . CRLF
+		} @chunks)
 		. "0" . CRLF . CRLF
 	);
 }
