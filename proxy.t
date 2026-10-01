@@ -21,7 +21,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy/)->plan(28);
+my $t = Test::Nginx->new()->has(qw/http proxy/)->plan(30);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -59,6 +59,13 @@ http {
             proxy_pass http://127.0.0.1:8081;
             proxy_read_timeout 2s;
             proxy_connect_timeout 2s;
+        }
+
+        location /test-tabs {
+            if ($http_x_forwarded_for != '192.0.2.1') {
+                return 444;
+            }
+            return 200 'tabs got stripped';
         }
 
         location /var {
@@ -120,6 +127,10 @@ like(http_get('/vars'), qr/X-Proxy-Host:\s127\.0\.0\.1:$p0/, 'proxy_host');
 like(http_get('/vars'), qr/X-Proxy-Port:\s$p0/, 'proxy_port');
 like(http_xff('/vars', '192.0.2.1'), qr/X-Proxy-Forwarded:.*192\.0\.2\.1/,
 	'proxy_add_x_forwarded_for');
+like(http_xff('/test-tabs', " \t 192.0.2.1\t "), qr/tabs got stripped/,
+	'tabs stripped');
+like(http_xff('/test-tabs', " \t 192.0.2.1 \t"), qr/tabs got stripped/,
+	'tabs stripped');
 
 ($ct, $ht) = get('/time/header');
 cmp_ok($ct, '<', 1, 'connect time - slow response header');

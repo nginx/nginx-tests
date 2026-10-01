@@ -40,6 +40,8 @@ http {
     server {
         listen       127.0.0.1:8080;
         server_name  localhost;
+        reject_leading_trailing_whitespace off;
+        reject_leading_trailing_whitespace_upstream on;
 
         location / {
             proxy_pass http://127.0.0.1:8081;
@@ -52,6 +54,18 @@ http {
             proxy_buffer_size 65k;
             proxy_busy_buffers_size 65k;
             proxy_buffers 8 16k;
+        }
+
+        location /bad_header_name {
+            proxy_pass http://127.0.0.1:8081;
+            proxy_http_version 2;
+            proxy_set_header X-Bad-Name $arg_bad_name;
+        }
+
+        location /bad_header_value {
+            proxy_pass http://127.0.0.1:8081;
+            proxy_http_version 2;
+            proxy_set_header X-Bad-Value $arg_bad_value;
         }
 
         location /continuation {
@@ -70,7 +84,7 @@ EOF
 $t->run_daemon(\&http_daemon);
 $t->waitforsocket('127.0.0.1:' . port(8081));
 
-$t->try_run('no proxy_http_version 2')->plan(19);
+$t->try_run('no proxy_http_version 2')->plan(36);
 
 ###############################################################################
 
@@ -93,6 +107,47 @@ like(http_get('/field/7'), qr/200 OK/, 'long header field 1');
 like(http_get('/field/8'), qr/200 OK/, 'long header field 2');
 like(http_get('/field/15'), qr/200 OK/, 'long header field 3');
 like(http_get('/field/16'), qr/502 Bad/, 'long header field 4');
+
+sub bad_name {
+	my ($name, $msg) = @_;
+	my $output = http_get('/bad_header_name?bad_name=' . unpack('H*', $name));
+	if ($name =~ /[\x00-\x20:A-Z\x7F]/) {
+		like($output, qr/502 Bad/, $msg);
+	} else {
+		like($output, qr/200 OK/, $output);
+	}
+}
+
+sub bad_value {
+	my ($value, $msg) = @_;
+	my $output = http_get('/bad_header_value?bad_value=' . unpack('H*', $value));
+	if ($value =~ /[\x00\r\n]|(\A[ \t])|([ \t]\z)/) {
+		like($output, qr/502 Bad/, $msg);
+	} else {
+		like($output, qr/200 OK/, $msg);
+	}
+}
+
+# bad header names (all hex encoded)
+bad_name('ABC', 'uppercase header name');
+bad_name('a:b', 'colon in header name');
+bad_name(':b', 'bad pseudo-header');
+bad_name('a b', 'space in header name');
+bad_name("a\rb", 'cr in header name');
+bad_name("a\nb", 'lf in header name');
+bad_name("a\0b", 'nul in header name');
+bad_name("a\x7Fb", '\x7F in header name');
+bad_name("ab", 'okay');
+
+# bad header values
+bad_value(' abc', 'rejected leading space');
+bad_value('abc ', 'rejected trailing space');
+bad_value("\tabc", 'rejected leading tab');
+bad_value("abc\t", 'rejected trailing tab');
+bad_value("a\nb", 'rejected nl');
+bad_value("a\rb", 'rejected cr');
+bad_value("a\000b", 'rejected nul');
+bad_value("ab", 'okay');
 
 # padding & priority
 
@@ -138,7 +193,25 @@ sub http_daemon {
 		my $sid = $frame->{sid};
 		my $uri = $frame->{headers}{':path'};
 
-		if ($uri =~ m|mode/(\d)|) {
+		if ($uri =~ m|newline|) {
+			$c->new_stream({ headers => [
+				{ name => ':status', value => '404' },
+				{ name => 'x-junk', value => "abc\ndef" },
+			]}, $sid);
+		} elsif ($uri =~ m|bad_header_name|) {
+			$c->new_stream({ headers => [
+				{ name => ':status', value => '200' },
+				{ name => pack('H*', $frame->{headers}{'x-bad-name'}),
+				  value => 'abc', mode => 2 },
+			]}, $sid);
+		} elsif ($uri =~ m|bad_header_value|) {
+			print STDERR (pack('H*', $frame->{headers}{'x-bad-value'}) . "\n");
+			$c->new_stream({ headers => [
+				{ name => ':status', value => '200' },
+				{ name => 'abc', mode => 2,
+				  value => pack('H*', $frame->{headers}{'x-bad-value'}) },
+			]}, $sid);
+		} elsif ($uri =~ m|mode/(\d)|) {
 			my $mode = $1;
 
 			$c->new_stream({ headers => [
