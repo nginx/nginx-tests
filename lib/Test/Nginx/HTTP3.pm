@@ -636,7 +636,15 @@ push_me:
 
 		$buf = substr($buf, $length);
 
-		last unless $extra{all} && test_fin($frame, $extra{all});
+		unless ($extra{all} && test_fin($frame, $extra{all})) {
+			# keep any trailing bytes of a not-yet-requested
+			# frame (e.g. DATA queued behind HEADERS on a
+			# stalled stream) so the next read() resumes at
+			# the right frame boundary
+			$self->{frames_incomplete}[$stream]{buf} = $buf
+				if length($buf);
+			last;
+		}
 		goto again if length($buf) > 0;
 
 frames:
