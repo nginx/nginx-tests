@@ -29,6 +29,9 @@ my $t = Test::Nginx->new()
 plan(skip_all => 'no TLSv1.2 in Net::SSLeay')
 	if Net::SSLeay::SSLeay() < 0x1000100f;
 
+plan(skip_all => 'no sigalgs in BoringSSL')
+	if $t->has_module('BoringSSL|AWS-LC');
+
 $t->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
