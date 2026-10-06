@@ -24,7 +24,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http http_v3 proxy rewrite cryptx/)
-	->has_daemon('openssl')->plan(50);
+	->has_daemon('openssl')->plan(64);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -72,6 +72,22 @@ http {
         location /large {
             client_max_body_size 1k;
             proxy_pass http://127.0.0.1:8082;
+        }
+
+        location /unknown {
+            client_body_buffer_size 64;
+            client_max_body_size 10;
+            client_body_in_file_only on;
+            add_header X-Body-File $request_body_file;
+            proxy_pass http://127.0.0.1:8082;
+        }
+
+        location /unbuf/unknown {
+            client_body_buffer_size 64;
+            client_max_body_size 10;
+            proxy_request_buffering off;
+            proxy_http_version 1.1;
+            proxy_pass http://127.0.0.1:8081/unknown;
         }
 
         location /unbuf/ {
@@ -249,7 +265,65 @@ like(http3_get_body_multi_nolen('/unbuf/single', '0123456789' x 128),
 like(http3_get_body_multi_nolen('/unbuf/large', '0123456789' x 128),
 	qr/:status: 413/, 'body unbuf multi nolen too large');
 
+# Unknown frame payload must not become request body when a read ends
+# inside it.  The payload is larger than both the read buffer and body limit.
+
+for my $uri ('/unknown', '/unbuf/unknown') {
+	my $unknown = "\x21\x41\x00" . ('x' x 256);
+	my @cases = (
+		[ $unknown . "\x00\x04TEST", 'TEST', 'before DATA' ],
+		[ "\x00\x02TE" . $unknown . "\x00\x02ST", 'TEST',
+			'between DATA' ],
+		[ "\x00\x04TEST" . $unknown, 'TEST', 'after DATA' ]
+	);
+
+	for my $case (@cases) {
+		my $r = http3_unknown($uri, $case->[0]);
+		is($r->{':status'}, 204, "unknown $case->[2] $uri - status");
+		is($r->{'x-body'}, $case->[1], "unknown $case->[2] $uri - body");
+	}
+
+	my $r = http3_unknown($uri,
+		"\x00\x06ABCDEF" . $unknown . "\x00\x05GHIJK");
+	is($r->{':status'}, 413, "body limit after unknown frame $uri");
+}
+
 ###############################################################################
+
+sub http3_unknown {
+	my ($uri, $body) = @_;
+
+	my $s = Test::Nginx::HTTP3->new();
+	my $sid = $s->new_stream({ path => $uri, body_more => 1 });
+
+	# Wait until nginx has received the headers, so the body uses the
+	# configured 64-byte buffer instead of the header preread buffer.
+
+	my $last = $s->{pn}[0][3];
+	my $acked;
+	for (1 .. 5) {
+		my $frames = $s->read(all => [{ type => 'ACK' }]);
+		my ($frame) = grep { $_->{type} eq 'ACK' } @$frames;
+		if ($frame && $frame->{largest} >= $last) {
+			$acked = 1;
+			last;
+		}
+	}
+	die "request headers not acknowledged" unless $acked;
+
+	$s->raw_write($s->build_stream($body, sid => $sid,
+		offset => $s->{streams}{$sid}{sent}));
+	my $frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
+	my ($frame) = grep { $_->{type} eq 'HEADERS' } @$frames;
+
+	my $headers = $frame ? $frame->{headers} : {};
+	if ($headers->{'x-body-file'}) {
+		$headers->{'x-body'} = read_body_file(
+			"x-body-file: $headers->{'x-body-file'}");
+	}
+
+	return $headers;
+}
 
 sub http3_get {
 	my ($uri) = @_;
