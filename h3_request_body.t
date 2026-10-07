@@ -24,7 +24,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http http_v3 proxy cryptx/)
-	->has_daemon('openssl')->plan(30);
+	->has_daemon('openssl')->plan(34);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -135,6 +135,49 @@ is(read_body_file($frame->{headers}->{'x-body-file'}), 'TESTMOREDATA',
 	'request body in multiple frames separately');
 is($frame->{headers}->{'x-length'}, 12,
 	'request body in multiple frames separately - content length');
+
+# reserved frame with a payload after the body
+
+$s = Test::Nginx::HTTP3->new();
+$sid = $s->new_stream({ path => '/proxy/t.html', body_more => 1,
+	body => 'TEST' });
+$s->h3_frame(0x1f * 42 + 0x21, 'grease', $sid);
+$frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
+
+($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
+is($frame->{headers}->{':status'}, 200, 'reserved frame - status');
+is(read_body_file($frame->{headers}->{'x-body-file'}), 'TEST',
+	'reserved frame - body');
+
+# reserved frame between two DATA frames
+
+$s = Test::Nginx::HTTP3->new();
+$sid = $s->new_stream({ body_more => 1, headers => [
+	{ name => ':method', value => 'GET' },
+	{ name => ':scheme', value => 'http' },
+	{ name => ':path', value => '/proxy/t.html' },
+	{ name => ':authority', value => 'localhost' },
+	{ name => 'content-length', value => '8' }]});
+$s->h3_body('TEST', $sid, { body_more => 1 });
+$s->h3_frame(0x1f * 42 + 0x21, 'grease', $sid, { body_more => 1 });
+$s->h3_body('MORE', $sid);
+$frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
+
+($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
+is(read_body_file($frame->{headers}->{'x-body-file'}), 'TESTMORE',
+	'reserved frame between data - body');
+
+# reserved frame with an empty payload
+
+$s = Test::Nginx::HTTP3->new();
+$sid = $s->new_stream({ path => '/proxy/t.html', body_more => 1,
+	body => 'TEST' });
+$s->h3_frame(0x1f * 42 + 0x21, '', $sid);
+$frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
+
+($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
+is(read_body_file($frame->{headers}->{'x-body-file'}), 'TEST',
+	'reserved frame empty - body');
 
 # request body with an empty DATA frame
 
