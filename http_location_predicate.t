@@ -47,6 +47,10 @@ http {
         location $arg_a {
             add_header X-Location "a";
             return 204;
+
+            location /drop {
+                rewrite ^ /x? last;
+            }
         }
 
         location = /exact {
@@ -137,7 +141,7 @@ http {
 
 EOF
 
-$t->run()->plan(28);
+$t->run()->plan(29);
 
 ###############################################################################
 
@@ -175,6 +179,7 @@ is(get('/x?c=1&d=1'), 'c d', 'predicate in predicate location');
 is(get('/c/if?c=2'), 'c if', 'if in predicate location');
 
 is(get('/redirect'), 'a', 'predicate after internal redirect');
+is(get('/drop?a=1'), '404', 'predicate not found after internal redirect');
 
 ###############################################################################
 
