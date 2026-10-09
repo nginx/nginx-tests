@@ -22,7 +22,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy cache rewrite/)->plan(20);
+my $t = Test::Nginx->new()->has(qw/http proxy cache rewrite/)->plan(24);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -167,14 +167,14 @@ http {
         }
 
         location /extension-before-x-accel-expires {
-            add_header Cache-Control stale-while-revalidate=2145902155;
+            add_header Cache-Control "stale-while-revalidate=2145902155$arg_cc";
             add_header X-Accel-Expires  @1;
             return 204;
         }
 
         location /extension-after-x-accel-expires {
             add_header X-Accel-Expires @1;
-            add_header Cache-Control stale-while-revalidate=2145902155;
+            add_header Cache-Control "stale-while-revalidate=2145902155$arg_cc";
             return 204;
         }
 
@@ -249,6 +249,18 @@ like(get('/extension-before-x-accel-expires'),
 	qr/STALE/, 'cache-control extensions before x-accel-expires');
 like(get('/extension-after-x-accel-expires'),
 	qr/STALE/, 'cache-control extensions after x-accel-expires');
+
+# Cache-Control restrictions do not prevent parsing extensions
+
+like(get('/extension-before-x-accel-expires?cc=,private'),
+	qr/STALE/, 'cache-control private extensions before x-accel-expires');
+like(get('/extension-after-x-accel-expires?cc=,private'),
+	qr/STALE/, 'cache-control private extensions after x-accel-expires');
+
+like(get('/extension-before-x-accel-expires?cc=,max-age=0'),
+	qr/STALE/, 'cache-control max-age=0 extensions before x-accel-expires');
+like(get('/extension-after-x-accel-expires?cc=,max-age=0'),
+	qr/STALE/, 'cache-control max-age=0 extensions after x-accel-expires');
 
 # Set-Cookie is considered when caching with Cache-Control
 
