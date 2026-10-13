@@ -22,7 +22,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http rewrite gzip/)->plan(19)
+my $t = Test::Nginx->new()->has(qw/http rewrite gzip/)->plan(21)
 	->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
@@ -43,6 +43,9 @@ http {
     log_format default  escape=default  $uri$arg_b$arg_c;
     log_format none     escape=none     $uri$arg_b$arg_c;
     log_format json     escape=json     $uri$arg_b$arg_c;
+
+    log_format utf8     escape=json     $http_user_agent;
+    log_format utf8v    escape=json     $http_x_valid;
 
     server {
         listen       127.0.0.1:8080;
@@ -115,6 +118,11 @@ http {
             access_log %%TESTDIR%%/none.log none;
             access_log %%TESTDIR%%/json.log json;
         }
+
+        location /utf8 {
+            access_log %%TESTDIR%%/utf8.log utf8;
+            access_log %%TESTDIR%%/utf8v.log utf8v;
+        }
     }
 }
 
@@ -171,6 +179,17 @@ http_get('/binary');
 
 # /escape/"1 %1B%1C "?c=2
 http_get('/escape/%221%20%1B%1C%20%22?c=2');
+
+# valid UTF-8, a C1 byte, a stray continuation byte, a surrogate half,
+# an overlong; X-Valid needs no escaping at all
+
+http(<<EOF);
+GET /utf8 HTTP/1.0
+Host: localhost
+User-Agent: \xc3\xa9|\x85|\x80|\xed\xa0\x80|\xc0\x80
+X-Valid: snowman-\xe2\x98\x83
+
+EOF
 
 http_get('/cache?logname=lru');
 http_get('/cache?logname=lru');
@@ -277,6 +296,20 @@ is($t->read_file('none.log'),
 	"/escape/\"1 \x1B\x1C \"2\n", 'escape - none');
 is($t->read_file('json.log'),
 	'/escape/\"1 \u001B\u001C \"2' . "\n", 'escape - json');
+
+# a value needing no escaping is copied without reaching the escaper
+
+is($t->read_file('utf8v.log'), "snowman-\xe2\x98\x83\n",
+	'escape - json valid utf8');
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.9');
+
+is($t->read_file('utf8.log'),
+	"\xc3\xa9|\xef\xbf\xbd|\xef\xbf\xbd|\xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd"
+	. "|\xef\xbf\xbd\xef\xbf\xbd\n", 'escape - json invalid utf8');
+
+}
 
 SKIP: {
 skip 'win32', 4 if $^O eq 'MSWin32';
