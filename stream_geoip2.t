@@ -45,8 +45,14 @@ stream {
     geoip_city     %%TESTDIR%%/city.mmdb;
     geoip_org      %%TESTDIR%%/org.mmdb;
 
+    log_format  geoip  '$remote_addr cc:$geoip_country_code '
+                       'cc3:$geoip_country_code3 cn:$geoip_country_name';
+
     server {
         listen  127.0.0.1:8080 proxy_protocol;
+
+        access_log  %%TESTDIR%%/geoip.log  geoip;
+
         return  "country_code:$geoip_country_code
                  country_code3:$geoip_country_code3
                  country_name:$geoip_country_name
@@ -77,6 +83,10 @@ $t->write_file('country.mmdb', write_mmdb('GeoLite2-Country-Test', [
 		names => { en => 'Japan' } } } ],
 	[ '203.0.113.1', { country => { iso_code => 'ZZ' } } ],
 	[ '203.0.113.2', { country => { iso_code => mmdb_uint32(42) } } ],
+	[ '203.0.113.3', { country => { iso_code => 'USA' } } ],
+	[ '203.0.113.4', { country => { iso_code => 'U' } } ],
+	[ '203.0.113.5', { country => { iso_code => '' } } ],
+	[ '203.0.113.6', { continent => { code => 'EU' } } ],
 ]));
 
 $t->write_file('city.mmdb', write_mmdb('GeoLite2-City-Test', [
@@ -99,6 +109,14 @@ $t->write_file('city.mmdb', write_mmdb('GeoLite2-City-Test', [
 	[ '198.51.100.3', { location => { latitude => mmdb_uint32(100),
 		longitude => mmdb_uint32(100),
 		metro_code => mmdb_uint64(999) } } ],
+	[ '198.51.100.4', { location => { latitude => mmdb_double(1e30),
+		longitude => mmdb_float(-180.5) } } ],
+	[ '198.51.100.5', { location => { latitude => mmdb_double(9**9**9),
+		longitude => mmdb_double(-9**9**9) } } ],
+	[ '198.51.100.6', { location => { latitude => mmdb_double(nan()),
+		longitude => mmdb_float(nan()) } } ],
+	[ '198.51.100.7', { location => { latitude => mmdb_double(180),
+		longitude => mmdb_float(-180) } } ],
 ]));
 
 $t->write_file('org.mmdb', write_mmdb('GeoLite2-ASN-Test', [
@@ -119,7 +137,7 @@ $t->write_file('org.mmdb', write_mmdb('GeoLite2-ASN-Test', [
 		isp => 'Example ISP' } ],
 ], 4));
 
-$t->try_run('mmdb not supported')->plan(42);
+$t->try_run('mmdb not supported')->plan(61);
 
 ###############################################################################
 
@@ -150,51 +168,96 @@ is($data{country_code}, 'JP', 'geoip ipv6 country code');
 is($data{country_code3}, 'JPN', 'geoip ipv6 country code 3');
 is($data{country_name}, 'Japan', 'geoip ipv6 country name');
 
-like(stream_pp('1.128.0.0'), qr/org:Telstra Pty Ltd/, 'geoip mmdb org asorg');
+like(stream_pp('1.128.0.0'), qr/org:Telstra Pty Ltd/, 'geoip asorg');
 like(stream_pp('::ffff:1.128.0.0'), qr/org:Telstra Pty Ltd/,
-	'geoip mmdb ipv4-mapped org ipv4-only db');
+	'geoip ipv4-mapped org ipv4-only db');
 
 %data = stream_pp('10.0.0.1') =~ /(\w+):(.*)/g;
-is($data{country_code}, '', 'geoip mmdb private ip - no country code');
-is($data{city}, '', 'geoip mmdb private ip - no city');
+is($data{country_code}, '', 'geoip private ip - no country code');
+is($data{city}, '', 'geoip private ip - no city');
 
 %data = stream_pp('203.0.113.1') =~ /(\w+):(.*)/g;
-is($data{country_code}, 'ZZ', 'geoip mmdb unmapped country code');
-is($data{country_code3}, '', 'geoip mmdb unmapped country code 3');
+is($data{country_code}, 'ZZ', 'geoip unmapped country code');
+is($data{country_code3}, '', 'geoip unmapped country code 3');
 
 %data = stream_pp('203.0.113.2') =~ /(\w+):(.*)/g;
-is($data{country_code}, '', 'geoip mmdb wrong value type');
+is($data{country_code}, '', 'geoip wrong value type');
+
+%data = stream_pp('203.0.113.3') =~ /(\w+):(.*)/g;
+is($data{country_code}, 'USA', 'geoip long country code');
+is($data{country_code3}, '', 'geoip long country code 3');
+
+%data = stream_pp('203.0.113.4') =~ /(\w+):(.*)/g;
+is($data{country_code}, 'U', 'geoip short country code');
+is($data{country_code3}, '', 'geoip short country code 3');
+
+%data = stream_pp('203.0.113.5') =~ /(\w+):(.*)/g;
+is($data{country_code}, '', 'geoip empty country code - empty output');
+is($data{country_code3}, '', 'geoip empty country code 3 - empty output');
+
+# an entry found in the database, but without the country key at all
+
+%data = stream_pp('203.0.113.6') =~ /(\w+):(.*)/g;
+is($data{country_code}, '', 'geoip no country key - empty output');
+is($data{country_name}, '', 'geoip no country name key - empty output');
 
 %data = stream_pp('198.51.100.1') =~ /(\w+):(.*)/g;
-is($data{latitude}, '12.5000', 'geoip mmdb float latitude');
-is($data{longitude}, '-45.2500', 'geoip mmdb float longitude');
-is($data{dma_code}, 500, 'geoip mmdb dma code uint16');
+is($data{latitude}, '12.5000', 'geoip float latitude');
+is($data{longitude}, '-45.2500', 'geoip float longitude');
+is($data{dma_code}, 500, 'geoip dma code uint16');
 
-like(stream_pp('198.51.100.2'), qr/dma_code:-5$/m,
-	'geoip mmdb dma code int32');
+like(stream_pp('198.51.100.2'), qr/dma_code:-5$/m, 'geoip dma code int32');
 
-like(stream_pp('1.128.0.1'), qr/org:Example ISP/, 'geoip mmdb org isp');
+like(stream_pp('1.128.0.1'), qr/org:Example ISP/, 'geoip org isp');
 like(stream_pp('1.128.0.2'), qr/org:Example Organization/,
-	'geoip mmdb org organization');
-like(stream_pp('1.128.0.3'), qr/org:example.com/, 'geoip mmdb org domain');
+	'geoip org organization');
+like(stream_pp('1.128.0.3'), qr/org:example.com/, 'geoip org domain');
 
 %data = stream_pp('198.51.100.3') =~ /(\w+):(.*)/g;
-is($data{latitude}, '', 'geoip mmdb float unsupported type');
-is($data{longitude}, '', 'geoip mmdb float unsupported type longitude');
-is($data{dma_code}, '', 'geoip mmdb int unsupported type');
+is($data{latitude}, '', 'geoip float unsupported type');
+is($data{longitude}, '', 'geoip float unsupported type longitude');
+is($data{dma_code}, '', 'geoip int unsupported type');
+
+# coordinates out of the [-180, 180] range are not found
+
+%data = stream_pp('198.51.100.4') =~ /(\w+):(.*)/g;
+is($data{latitude}, '', 'geoip latitude out of range');
+is($data{longitude}, '', 'geoip longitude out of range');
+
+%data = stream_pp('198.51.100.5') =~ /(\w+):(.*)/g;
+is($data{latitude}, '', 'geoip latitude inf');
+is($data{longitude}, '', 'geoip longitude -inf');
+
+%data = stream_pp('198.51.100.6') =~ /(\w+):(.*)/g;
+is($data{latitude}, '', 'geoip latitude nan');
+is($data{longitude}, '', 'geoip longitude nan');
+
+%data = stream_pp('198.51.100.7') =~ /(\w+):(.*)/g;
+is($data{latitude}, '180.0000', 'geoip latitude range boundary');
+is($data{longitude}, '-180.0000', 'geoip longitude range boundary');
 
 %data = stream_pp('1.128.0.4') =~ /(\w+):(.*)/g;
-is($data{org}, '', 'geoip mmdb org no recognized field');
+is($data{org}, '', 'geoip org no recognized field');
 
 %data = stream_pp('2001:db8::1') =~ /(\w+):(.*)/g;
-is($data{org}, '', 'geoip mmdb org ipv4-only db declines genuine ipv6');
+is($data{org}, '', 'geoip org ipv4-only db declines genuine ipv6');
 
 like(stream_pp('1.128.0.5'), qr/org:Telstra Pty Ltd/,
-	'geoip mmdb org precedence all fields');
+	'geoip org precedence all fields');
 like(stream_pp('1.128.0.6'), qr/org:Example ISP/,
-	'geoip mmdb org precedence isp over domain');
+	'geoip org precedence isp over domain');
 like(stream_pp('1.128.0.7'), qr/org:Example ISP/,
-	'geoip mmdb org non-string field falls through');
+	'geoip org non-string field falls through');
+
+$t->stop();
+
+my $log = $t->read_file('geoip.log');
+like($log, qr/^203\.0\.113\.5 cc: cc3:- /m,
+	'geoip empty country code - found empty');
+like($log, qr/^203\.0\.113\.6 cc:- cc3:- cn:-$/m,
+	'geoip no country key - not found');
+like($log, qr/^10\.0\.0\.1 cc:- cc3:- cn:-$/m,
+	'geoip private ip - not found');
 
 ###############################################################################
 
@@ -206,6 +269,8 @@ sub stream_pp {
 }
 
 ###############################################################################
+
+sub nan { my $inf = 9**9**9; $inf - $inf }
 
 sub mmdb_double { bless { v => $_[0] }, 'mmdb_double' }
 sub mmdb_float  { bless { v => $_[0] }, 'mmdb_float' }
