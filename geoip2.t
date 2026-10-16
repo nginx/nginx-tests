@@ -78,6 +78,10 @@ $t->write_file('country.mmdb', write_mmdb('GeoLite2-Country-Test', [
 		names => { en => 'Japan' } } } ],
 	[ '203.0.113.1', { country => { iso_code => 'ZZ' } } ],
 	[ '203.0.113.2', { country => { iso_code => mmdb_uint32(42) } } ],
+	[ '203.0.113.3', { country => { iso_code => 'USA' } } ],
+	[ '203.0.113.4', { country => { iso_code => 'U' } } ],
+	[ '203.0.113.5', { country => { iso_code => '' } } ],
+	[ '203.0.113.6', { continent => { code => 'EU' } } ],
 ]));
 
 $t->write_file('city.mmdb', write_mmdb('GeoLite2-City-Test', [
@@ -121,7 +125,7 @@ $t->write_file('org.mmdb', write_mmdb('GeoLite2-ASN-Test', [
 ], 4));
 
 $t->write_file('index.html', '');
-$t->try_run('mmdb not supported')->plan(42);
+$t->try_run('mmdb not supported')->plan(55);
 
 ###############################################################################
 
@@ -148,56 +152,86 @@ like($r, qr/X-Org: Nginx/, 'geoip org');
 like(http_xff('::ffff:81.2.69.160'), qr/X-Org: Nginx/,
 	'geoip ipv6 ipv4-mapped');
 
+$r = http_xff('81.2.69.160');
+unlike($r, qr/X-Area-Code/, 'geoip area code always empty');
+
+$r = http_xff('10.0.0.1');
+unlike($r, qr/X-Country-Code:/, 'geoip private ip - no country code');
+unlike($r, qr/X-City:/, 'geoip private ip - no city');
+
+$r = http_xff('81.2.69.160, 10.0.0.1');
+unlike($r, qr/X-Country-Code:/, 'geoip xff untrusted hop');
+
+$r = http_xff('81.2.69.160');
+like($r, qr/X-Country-Code: GB.*X-City: London/s,
+	'geoip multiple variables in single request');
+
 $r = http_xff('2001:218::');
 like($r, qr/X-Country-Code: JP/, 'geoip ipv6 country code');
 like($r, qr/X-Country-Code3: JPN/, 'geoip ipv6 country code 3');
 like($r, qr/X-Country-Name: Japan/, 'geoip ipv6 country name');
 
 like(http_xff('1.128.0.0'), qr/X-Org: Telstra Pty Ltd/,
-	'geoip mmdb org asorg');
+	'geoip org asorg');
 like(http_xff('::ffff:1.128.0.0'), qr/X-Org: Telstra Pty Ltd/,
-	'geoip mmdb ipv4-mapped org ipv4-only db');
+	'geoip ipv4-mapped org ipv4-only db');
 
 $r = http_xff('10.0.0.1');
 unlike($r, qr/X-Country-Code:/, 'geoip mmdb private ip - no country code');
 unlike($r, qr/X-City:/, 'geoip mmdb private ip - no city');
 
 $r = http_xff('203.0.113.1');
-like($r, qr/X-Country-Code: ZZ/, 'geoip mmdb unmapped country code');
-unlike($r, qr/X-Country-Code3:/, 'geoip mmdb unmapped country code 3');
+like($r, qr/X-Country-Code: ZZ/, 'geoip unmapped country code');
+unlike($r, qr/X-Country-Code3:/, 'geoip unmapped country code 3');
 
 unlike(http_xff('203.0.113.2'), qr/X-Country-Code:/,
-	'geoip mmdb wrong value type');
+	'geoip wrong value type');
+
+$r = http_xff('203.0.113.3');
+like($r, qr/X-Country-Code: USA/, 'geoip long country code');
+unlike($r, qr/X-Country-Code3:/, 'geoip long country code 3');
+
+$r = http_xff('203.0.113.4');
+like($r, qr/X-Country-Code: U/, 'geoip short country code');
+unlike($r, qr/X-Country-Code3:/, 'geoip short country code 3');
+
+$r = http_xff('203.0.113.5');
+unlike($r, qr/X-Country-Code:/, 'geoip empty country code');
+unlike($r, qr/X-Country-Code3:/, 'geoip empty country code 3');
+
+$r = http_xff('203.0.113.6');
+unlike($r, qr/X-Country-Code:/, 'geoip no country key');
+unlike($r, qr/X-Country-Name:/, 'geoip no country name key');
 
 $r = http_xff('198.51.100.1');
-like($r, qr/X-Latitude: 12.5000/, 'geoip mmdb float latitude');
-like($r, qr/X-Longitude: -45.2500/, 'geoip mmdb float longitude');
-like($r, qr/X-Dma-Code: 500/, 'geoip mmdb dma code uint16');
+like($r, qr/X-Latitude: 12.5000/, 'geoip float latitude');
+like($r, qr/X-Longitude: -45.2500/, 'geoip float longitude');
+like($r, qr/X-Dma-Code: 500/, 'geoip dma code uint16');
 
 like(http_xff('198.51.100.2'), qr/X-Dma-Code: -5/,
-	'geoip mmdb dma code int32');
+	'geoip dma code int32');
 
-like(http_xff('1.128.0.1'), qr/X-Org: Example ISP/, 'geoip mmdb org isp');
+like(http_xff('1.128.0.1'), qr/X-Org: Example ISP/, 'geoip org isp');
 like(http_xff('1.128.0.2'), qr/X-Org: Example Organization/,
-	'geoip mmdb org organization');
-like(http_xff('1.128.0.3'), qr/X-Org: example.com/, 'geoip mmdb org domain');
+	'geoip org organization');
+like(http_xff('1.128.0.3'), qr/X-Org: example.com/, 'geoip org domain');
 
 $r = http_xff('198.51.100.3');
-unlike($r, qr/X-Latitude:/, 'geoip mmdb float unsupported type');
-unlike($r, qr/X-Longitude:/, 'geoip mmdb float unsupported type longitude');
-unlike($r, qr/X-Dma-Code:/, 'geoip mmdb int unsupported type');
+unlike($r, qr/X-Latitude:/, 'geoip float unsupported type');
+unlike($r, qr/X-Longitude:/, 'geoip float unsupported type longitude');
+unlike($r, qr/X-Dma-Code:/, 'geoip int unsupported type');
 
 unlike(http_xff('1.128.0.4'), qr/X-Org:/,
-	'geoip mmdb org no recognized field');
+	'geoip org no recognized field');
 unlike(http_xff('2001:db8::1'), qr/X-Org:/,
-	'geoip mmdb org ipv4-only db declines genuine ipv6');
+	'geoip org ipv4-only db declines genuine ipv6');
 
 like(http_xff('1.128.0.5'), qr/X-Org: Telstra Pty Ltd/,
-	'geoip mmdb org precedence all fields');
+	'geoip org precedence all fields');
 like(http_xff('1.128.0.6'), qr/X-Org: Example ISP/,
-	'geoip mmdb org precedence isp over domain');
+	'geoip org precedence isp over domain');
 like(http_xff('1.128.0.7'), qr/X-Org: Example ISP/,
-	'geoip mmdb org non-string field falls through');
+	'geoip org non-string field falls through');
 
 ###############################################################################
 
