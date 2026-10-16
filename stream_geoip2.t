@@ -77,6 +77,10 @@ $t->write_file('country.mmdb', write_mmdb('GeoLite2-Country-Test', [
 		names => { en => 'Japan' } } } ],
 	[ '203.0.113.1', { country => { iso_code => 'ZZ' } } ],
 	[ '203.0.113.2', { country => { iso_code => mmdb_uint32(42) } } ],
+	[ '203.0.113.3', { country => { iso_code => 'USA' } } ],
+	[ '203.0.113.4', { country => { iso_code => 'U' } } ],
+	[ '203.0.113.5', { country => { iso_code => '' } } ],
+	[ '203.0.113.6', { continent => { code => 'EU' } } ],
 ]));
 
 $t->write_file('city.mmdb', write_mmdb('GeoLite2-City-Test', [
@@ -119,7 +123,7 @@ $t->write_file('org.mmdb', write_mmdb('GeoLite2-ASN-Test', [
 		isp => 'Example ISP' } ],
 ], 4));
 
-$t->try_run('mmdb not supported')->plan(42);
+$t->try_run('mmdb not supported')->plan(50);
 
 ###############################################################################
 
@@ -152,23 +156,41 @@ is($data{country_name}, 'Japan', 'geoip ipv6 country name');
 
 like(stream_pp('1.128.0.0'), qr/org:Telstra Pty Ltd/, 'geoip mmdb org asorg');
 like(stream_pp('::ffff:1.128.0.0'), qr/org:Telstra Pty Ltd/,
-	'geoip mmdb ipv4-mapped org ipv4-only db');
+	'geoip ipv4-mapped org ipv4-only db');
 
 %data = stream_pp('10.0.0.1') =~ /(\w+):(.*)/g;
-is($data{country_code}, '', 'geoip mmdb private ip - no country code');
-is($data{city}, '', 'geoip mmdb private ip - no city');
+is($data{country_code}, '', 'geoip private ip - no country code');
+is($data{city}, '', 'geoip private ip - no city');
 
 %data = stream_pp('203.0.113.1') =~ /(\w+):(.*)/g;
-is($data{country_code}, 'ZZ', 'geoip mmdb unmapped country code');
-is($data{country_code3}, '', 'geoip mmdb unmapped country code 3');
+is($data{country_code}, 'ZZ', 'geoip unmapped country code');
+is($data{country_code3}, '', 'geoip unmapped country code 3');
 
 %data = stream_pp('203.0.113.2') =~ /(\w+):(.*)/g;
-is($data{country_code}, '', 'geoip mmdb wrong value type');
+is($data{country_code}, '', 'geoip wrong value type');
+
+%data = stream_pp('203.0.113.3') =~ /(\w+):(.*)/g;
+is($data{country_code}, 'USA', 'geoip long country code');
+is($data{country_code3}, '', 'geoip long country code 3');
+
+%data = stream_pp('203.0.113.4') =~ /(\w+):(.*)/g;
+is($data{country_code}, 'U', 'geoip short country code');
+is($data{country_code3}, '', 'geoip short country code 3');
+
+%data = stream_pp('203.0.113.5') =~ /(\w+):(.*)/g;
+is($data{country_code}, '', 'geoip empty country code');
+is($data{country_code3}, '', 'geoip empty country code 3');
+
+# an entry found in the database, but without the country key at all
+
+%data = stream_pp('203.0.113.6') =~ /(\w+):(.*)/g;
+is($data{country_code}, '', 'geoip no country key');
+is($data{country_name}, '', 'geoip no country name key');
 
 %data = stream_pp('198.51.100.1') =~ /(\w+):(.*)/g;
-is($data{latitude}, '12.5000', 'geoip mmdb float latitude');
-is($data{longitude}, '-45.2500', 'geoip mmdb float longitude');
-is($data{dma_code}, 500, 'geoip mmdb dma code uint16');
+is($data{latitude}, '12.5000', 'geoip float latitude');
+is($data{longitude}, '-45.2500', 'geoip float longitude');
+is($data{dma_code}, 500, 'geoip dma code uint16');
 
 like(stream_pp('198.51.100.2'), qr/dma_code:-5$/m,
 	'geoip mmdb dma code int32');
@@ -179,22 +201,22 @@ like(stream_pp('1.128.0.2'), qr/org:Example Organization/,
 like(stream_pp('1.128.0.3'), qr/org:example.com/, 'geoip mmdb org domain');
 
 %data = stream_pp('198.51.100.3') =~ /(\w+):(.*)/g;
-is($data{latitude}, '', 'geoip mmdb float unsupported type');
-is($data{longitude}, '', 'geoip mmdb float unsupported type longitude');
-is($data{dma_code}, '', 'geoip mmdb int unsupported type');
+is($data{latitude}, '', 'geoip float unsupported type');
+is($data{longitude}, '', 'geoip float unsupported type longitude');
+is($data{dma_code}, '', 'geoip int unsupported type');
 
 %data = stream_pp('1.128.0.4') =~ /(\w+):(.*)/g;
-is($data{org}, '', 'geoip mmdb org no recognized field');
+is($data{org}, '', 'geoip org no recognized field');
 
 %data = stream_pp('2001:db8::1') =~ /(\w+):(.*)/g;
-is($data{org}, '', 'geoip mmdb org ipv4-only db declines genuine ipv6');
+is($data{org}, '', 'geoip org ipv4-only db declines genuine ipv6');
 
 like(stream_pp('1.128.0.5'), qr/org:Telstra Pty Ltd/,
-	'geoip mmdb org precedence all fields');
+	'geoip org precedence all fields');
 like(stream_pp('1.128.0.6'), qr/org:Example ISP/,
-	'geoip mmdb org precedence isp over domain');
+	'geoip org precedence isp over domain');
 like(stream_pp('1.128.0.7'), qr/org:Example ISP/,
-	'geoip mmdb org non-string field falls through');
+	'geoip org non-string field falls through');
 
 ###############################################################################
 
