@@ -12,6 +12,7 @@ use strict;
 use Test::More;
 
 use IO::Select;
+use Socket qw/ SOL_SOCKET SO_RCVBUF /;
 
 BEGIN { use FindBin; chdir($FindBin::Bin); }
 
@@ -59,11 +60,13 @@ $t->try_run('no inet6 support')->plan(5);
 ###############################################################################
 
 my ($s1, $s2) = map {
-	IO::Socket::INET->new(
+	my $s = IO::Socket::INET->new(
 		Proto => 'udp',
 		LocalAddr => "127.0.0.1:$_"
 	)
 		or die "Can't open syslog socket $_: $!";
+	set_rcvbuf($s, 64 * 1024);
+	$s;
 } port(8981), port(8982);
 
 is(get_syslog('/', $s1), '', 'no debug_connection syslog 1');
@@ -75,6 +78,13 @@ like($msgs[1], qr/\[debug\]/, 'debug_connection syslog 2');
 is($msgs[0], $msgs[1], 'debug_connection syslog1 syslog2 match');
 
 ###############################################################################
+
+sub set_rcvbuf {
+	my ($s, $size) = @_;
+	if ($s->getsockopt(SOL_SOCKET, SO_RCVBUF) < $size) {
+		$s->setsockopt(SOL_SOCKET, SO_RCVBUF, $size);
+	}
+}
 
 sub get_syslog {
 	my ($uri, @s) = @_;
