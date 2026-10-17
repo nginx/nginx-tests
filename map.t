@@ -68,11 +68,11 @@ http {
         server_name  localhost;
 
         location / {
-            add_header X-Foo "x:$x y:$y\n";
+            add_header X-Foo "x:$x y:$y";
             return 204;
         }
         location /z {
-            add_header X-Foo "z:$z\n";
+            add_header X-Foo "z:$z";
             return 204;
         }
     }
