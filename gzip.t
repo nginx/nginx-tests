@@ -21,7 +21,7 @@ use Test::Nginx qw/ :DEFAULT :gzip /;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy gzip/)->plan(8);
+my $t = Test::Nginx->new()->has(qw/http proxy gzip/)->plan(11);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -48,6 +48,12 @@ http {
         location /local/ {
             gzip off;
             alias %%TESTDIR%%/;
+        }
+        location /gone {
+            gzip on;
+            gzip_types text/plain;
+            default_type text/plain;
+            return 410 "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
         }
     }
 }
@@ -80,6 +86,11 @@ unlike(http_gzip_request('/proxy/'), qr/Accept-Ranges/im,
 
 like(http_gzip_head('/'), qr/Content-Encoding: gzip/, 'gzip head');
 unlike(http_head('/'), qr/Content-Encoding: gzip/, 'no gzip head');
+
+$r = http_gzip_request('/gone');
+like($r, qr/^HTTP\/1\.1 410 Gone/m, '410 gone');
+like($r, qr/^Content-Encoding: gzip/m, 'gzip 410');
+http_gzip_like($r, qr/^X{64}\Z/, 'gzip 410 content');
 
 ###############################################################################
 
