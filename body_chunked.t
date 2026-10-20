@@ -22,7 +22,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(18);
+my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(28);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -68,6 +68,14 @@ http {
         }
         location /large {
             client_max_body_size 1k;
+            proxy_pass http://127.0.0.1:8081;
+        }
+        location /tiny {
+            client_max_body_size 1;
+            proxy_pass http://127.0.0.1:8081;
+        }
+        location /unlimited {
+            client_max_body_size 0;
             proxy_pass http://127.0.0.1:8081;
         }
         location /discard {
@@ -119,6 +127,39 @@ like(http_get_body('/single', '0123456789' x 128),
 	qr/X-Body: (0123456789){128}\x0d?$/ms, 'body in single buffer');
 
 like(http_get_body('/large', '0123456789' x 128), qr/ 413 /, 'body too large');
+
+# chunked framing is not limited by client_max_body_size
+
+like(http_chunked('/large', '1;' . 'x' x 2048 . CRLF . 'a' . CRLF
+	. '0' . CRLF), qr/ 200 /, 'chunk extension');
+like(http_chunked('/large', '0' x 2048 . '1' . CRLF . 'a' . CRLF
+	. '0' . CRLF), qr/ 200 /, 'chunk size leading zeros');
+like(http_chunked('/large', '1' . CRLF . 'a' . CRLF . '0' . CRLF
+	. 'X-Trailer: ' . 'x' x 2048 . CRLF), qr/ 200 /, 'trailer');
+like(http_chunked('/tiny', '0' . CRLF), qr/ 200 /, 'empty body');
+
+like(http_chunked('/large', ('1' . CRLF . 'a' . CRLF) x 300 . '0' . CRLF),
+	qr/ 200 /, 'small chunks');
+like(http_chunked('/', ('1' . CRLF . 'a' . CRLF) x 250000 . '0' . CRLF),
+	qr/ 200 /, 'small chunks default limit');
+like(http_chunked('/large', ('1' . CRLF . 'a' . CRLF) x 1100 . '0' . CRLF),
+	qr/ 413 /, 'small chunks too large');
+
+# excessive chunked framing compared to body data is rejected
+
+like(http_chunked('/unlimited', '1;' . 'x' x (4 * 1024 * 1024) . CRLF
+	. 'a' . CRLF . '0' . CRLF), qr/ 200 /, 'framing below flood limit');
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.9');
+
+like(http_chunked('/unlimited', '1;' . 'x' x (9 * 1024 * 1024) . CRLF
+	. 'a' . CRLF . '0' . CRLF), qr/400 Bad/, 'framing flood extension');
+like(http_chunked('/unlimited', '1' . CRLF . 'a' . CRLF . '0' . CRLF
+	. ('X-Trailer: ' . 'x' x 1024 . CRLF) x 9216), qr/400 Bad/,
+	'framing flood trailer');
+
+}
 
 # pipelined requests
 
@@ -217,6 +258,16 @@ sub http_get_body {
 		. $last . CRLF
 		. "0" . CRLF . CRLF
 	);
+}
+
+sub http_chunked {
+	my ($uri, $body) = @_;
+
+	http("GET $uri HTTP/1.1" . CRLF
+		. "Host: localhost" . CRLF
+		. "Connection: close" . CRLF
+		. "Transfer-Encoding: chunked" . CRLF . CRLF
+		. $body . CRLF);
 }
 
 sub http_transfer_encoding {
