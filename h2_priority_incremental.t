@@ -133,4 +133,3 @@ sub queued {
 	return join ' ', map { $_->{sid} }
 		grep { $_->{type} eq 'DATA' } @$frames;
 }
-
