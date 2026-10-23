@@ -169,7 +169,7 @@ is($frame->{last_sid}, 8, 'keepalive time limit - GOAWAY last stream');
 # graceful shutdown in idle state
 
 $s = Test::Nginx::HTTP3->new();
-$sid = $s->new_stream();
+$s->read(all => [{ sid => $s->new_stream(), fin => 1 }]);
 
 $t->reload();
 
