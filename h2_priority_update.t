@@ -62,6 +62,19 @@ http {
     }
 
     server {
+        listen       127.0.0.1:8082 sndbuf=4k;
+        server_name  localhost;
+
+        location / { }
+
+        location /trailers/ {
+            alias %%TESTDIR%%/;
+            output_buffers 1 1m;
+            add_trailer X-Trailer foo;
+        }
+    }
+
+    server {
         listen       127.0.0.1:8081;
         server_name  localhost;
 
@@ -90,8 +103,10 @@ $t->write_file('t1.html',
 	join('', map { sprintf "X%04dXXX", $_ } (1 .. 8202)));
 
 $t->write_file('t2.html', 'SEE-THIS');
+$t->write_file('t3.html', 'x' x 2**17);
+$t->write_file('t4.html', 'x' x 2**18);
 
-$t->run()->plan(59);
+$t->run()->plan(62);
 
 ###############################################################################
 
@@ -100,7 +115,7 @@ my $frames = $s->read(all => [{ type => 'SETTINGS' }]);
 my ($frame) = grep { $_->{type} eq 'SETTINGS' } @$frames;
 
 SKIP: {
-skip 'RFC 9218 priorities not signalled', 59 unless $frame->{9};
+skip 'RFC 9218 priorities not signalled', 62 unless $frame->{9};
 
 is($frame->{9}, 1, 'SETTINGS_NO_RFC7540_PRIORITIES');
 
@@ -224,6 +239,57 @@ is(data_order($s), '1 3', 'split over state buffer');
 
 is(buffered(31), '3 1', 'buffered priority - 32 idle streams');
 is(buffered(32), '1 3', 'buffered priority - 33 idle streams');
+
+# trailers are queued along with the stream data, they must not hold back
+# a more urgent stream queued later while the client is not reading
+
+$s = Test::Nginx::HTTP2->new(port(8082));
+$s->h2_settings(0, 0x4 => 2**24);
+$s->h2_window(2**24);
+
+$s->new_stream(request('/trailers/t3.html', 'u=7'));
+$s->read(all => [{ sid => 1, fin => 0x4 }]);
+
+$s->new_stream(request('/t2.html', 'u=0'));
+$frames = $s->read(all => [{ sid => 1, fin => 1 }, { sid => 3, fin => 1 }]);
+
+my @order = map { "$_->{type}:$_->{sid}" }
+	grep { $_->{type} =~ /HEADERS|DATA/ && $_->{flags} & 1 } @$frames;
+
+{
+local $TODO = 'not yet' unless $t->has_version('1.31.9');
+
+is("@order", 'DATA:3 HEADERS:1', 'trailers');
+
+}
+
+# unsent trailers of a reset stream are discarded and not credited to the
+# connection window: the window fits the response with trailers, a larger
+# one then consumes exactly what is left of it
+
+$s = Test::Nginx::HTTP2->new(port(8082));
+$s->h2_settings(0, 0x4 => 2**24);
+$s->h2_window(2**17);
+
+$s->new_stream(request('/trailers/t3.html'));
+$s->read(all => [{ sid => 1, fin => 0x4 }]);
+$s->h2_rst(1, 8);
+
+$s->new_stream(request('/t4.html'));
+$frames = $s->read(all => [{ sid => 3, fin => 1 }], wait => 0.5);
+
+my $len = 0;
+$len += $_->{length} for grep { $_->{type} eq 'DATA' } @$frames;
+
+is($len, 2**16 - 1 + 2**17, 'trailers - reset stream window');
+
+{
+local $TODO = 'not yet' unless $t->has_version('1.31.9');
+
+is(grep({ $_->{type} eq 'HEADERS' && $_->{sid} == 1 } @$frames), 0,
+	'trailers - reset stream');
+
+}
 
 # RFC 7540 signals no longer reorder anything
 
