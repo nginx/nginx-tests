@@ -24,7 +24,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http http_v3 proxy rewrite cryptx/)
-	->has_daemon('openssl')->plan(75)
+	->has_daemon('openssl')->plan(81)
 	->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
@@ -62,6 +62,14 @@ http {
 
         location /proxy2/ {
             proxy_pass http://127.0.0.1:8081/;
+        }
+
+        location /static-table {
+            add_header X-Content-Type $http_content_type;
+            add_header X-STS $http_strict_transport_security;
+            add_header X-XSS $http_x_xss_protection;
+            add_header X-CSP $http_content_security_policy;
+            return 200;
         }
 
         location /set-cookie {
@@ -157,6 +165,38 @@ $frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
 
 ($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
 is($frame->{headers}->{'x-path'}, '/', 'indexed');
+
+# 3.1.  Static Table
+#   The static table consists of a predefined list of field lines, each
+#   of which has a fixed index over time.  Its entries are defined in
+#   Appendix A.
+
+foreach my $f (
+	[ 'content-type', 'text/html; charset=utf-8', 'x-content-type' ],
+	[ 'content-type', 'text/plain;charset=utf-8', 'x-content-type' ],
+	[ 'strict-transport-security', 'max-age=31536000; includesubdomains',
+		'x-sts' ],
+	[ 'strict-transport-security',
+		'max-age=31536000; includesubdomains; preload', 'x-sts' ],
+	[ 'x-xss-protection', '1; mode=block', 'x-xss' ],
+	[ 'content-security-policy',
+		"script-src 'none'; object-src 'none'; base-uri 'none'",
+		'x-csp' ]
+) {
+	my ($name, $value, $var) = @$f;
+
+	my $s = Test::Nginx::HTTP3->new();
+	my $sid = $s->new_stream({ headers => [
+		{ name => ':method', value => 'GET', mode => 0 },
+		{ name => ':scheme', value => 'http', mode => 0 },
+		{ name => ':path', value => '/static-table', mode => 2 },
+		{ name => ':authority', value => 'localhost', mode => 2 },
+		{ name => $name, value => $value, mode => 0 }]});
+	my $frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
+
+	my ($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
+	is($frame->{headers}->{$var}, $value, "static table - $name: $value");
+}
 
 $s->insert_literal(':path', '/foo');
 $sid = $s->new_stream({ headers => [
