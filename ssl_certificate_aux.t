@@ -47,7 +47,7 @@ http {
         listen       127.0.0.1:8443 ssl;
         server_name  localhost;
 
-        ssl_certificate localhost.crt;
+        ssl_certificate localhost-aux.crt;
         ssl_certificate_key localhost.key;
 
         ssl_verify_client optional;
@@ -79,7 +79,7 @@ foreach my $name ('localhost') {
 		or die "Can't create certificate for $name: $!\n";
 
 	system('openssl x509 -addtrust serverAuth -trustout '
-		. "-in $d/$name.crt -out $d/$name.crt "
+		. "-in $d/$name.crt -out $d/$name-aux.crt "
 		. ">>$d/openssl.out 2>&1") == 0
 		or die "Can't add certificate trust for $name: $!\n";
 }
@@ -115,7 +115,7 @@ foreach my $name ('root1', 'root2') {
 		or die "Can't create certificate for $name: $!\n";
 
 	system('openssl x509 -addtrust clientAuth -trustout '
-		. "-in $d/$name.crt -out $d/$name.crt "
+		. "-in $d/$name.crt -out $d/$name-aux.crt "
 		. ">>$d/openssl.out 2>&1") == 0
 		or die "Can't add certificate trust for $name: $!\n";
 }
@@ -136,12 +136,13 @@ foreach my $name ('client1', 'client2') {
 		or die "Can't sign certificate for $name: $!\n";
 
 	system('openssl x509 -addtrust clientAuth -trustout '
-		. "-in $d/$name.crt -out $d/$name.crt "
+		. "-in $d/$name.crt -out $d/$name-aux.crt "
 		. ">>$d/openssl.out 2>&1") == 0
 		or die "Can't add certificate trust for $name: $!\n";
 
 	$t->write_file("$root-$name.crt",
-		$t->read_file("$root.crt") . $t->read_file("$name.crt"));
+		$t->read_file("$root-aux.crt") .
+		$t->read_file("$name-aux.crt"));
 }
 
 $t->write_file('t', '');
