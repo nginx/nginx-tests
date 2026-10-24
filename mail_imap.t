@@ -96,7 +96,7 @@ http {
 EOF
 
 $t->run_daemon(\&Test::Nginx::IMAP::imap_test_daemon);
-$t->run()->plan(31);
+$t->run()->plan(34);
 
 $t->waitforsocket('127.0.0.1:' . port(8144));
 
@@ -115,6 +115,22 @@ $s->check(qr/^a02 NO/, 'login with bad password');
 
 $s->send('a03 LOGIN test@example.com secret');
 $s->ok('login');
+
+# tag is not reused after failed authentication
+
+$s = Test::Nginx::IMAP->new();
+$s->read();
+
+$s->send('foobar LOGIN test@example.com bad');
+$s->check(qr/^foobar NO/, 'login with bad password tag');
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.9');
+
+$s->send('');
+$s->check(qr/^\* BAD/, 'empty line after failed login');
+
+}
 
 # login with untagged capability
 
@@ -200,6 +216,23 @@ $s->read();
 
 $s->send('1 AUTHENTICATE EXTERNAL ' . encode_base64('test@example.com', ''));
 $s->ok('auth external with username');
+
+# auth external after failed plain
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.9');
+
+$s = Test::Nginx::IMAP->new();
+$s->read();
+
+$s->send('1 AUTHENTICATE PLAIN '
+	. encode_base64("\0test\@example.com\0bad", ''));
+$s->read();
+
+$s->send('1 AUTHENTICATE EXTERNAL ' . encode_base64('test@example.com', ''));
+$s->ok('auth external after plain');
+
+}
 
 # quoted strings
 
