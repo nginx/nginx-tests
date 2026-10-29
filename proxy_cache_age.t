@@ -130,8 +130,8 @@ like(http_get('/stale'), qr/^(?>.*?Age:) 110(?!.*Age:)/s,
 like(http_get('/noage'), qr/^(?>.*?Age:) [1-5](?!.*Age:)/s,
 	'noage age added');
 
-like(http_get('/revalidate'), qr/REVALIDATED(?!.*Age:)/ms,
-	'revalidate age not added');
+like(http_get('/revalidate'), qr/REVALIDATED.*Age: 0\x0d?$/ms,
+	'revalidate age reset');
 
 ###############################################################################
 
