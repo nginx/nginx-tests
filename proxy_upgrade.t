@@ -28,7 +28,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http proxy ssi/)
-	->write_file_expand('nginx.conf', <<'EOF')->plan(31);
+	->write_file_expand('nginx.conf', <<'EOF')->plan(32);
 
 %%TEST_GLOBALS%%
 
@@ -52,6 +52,16 @@ http {
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "Upgrade";
+            proxy_read_timeout 2s;
+            send_timeout 2s;
+        }
+
+        location /exact {
+            proxy_pass    http://127.0.0.1:8081;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "Upgrade";
+            proxy_buffer_size 61;
             proxy_read_timeout 2s;
             send_timeout 2s;
         }
@@ -139,6 +149,16 @@ ok(!$s, "handshake noupgrade");
 
 $s = upgrade_connect(uri => '/ssi.html');
 ok(!$s, "handshake in subrequests");
+
+# response header filling proxy_buffer_size exactly,
+# the 101 response from the backend is 61 bytes
+
+TODO: {
+local $TODO = 'not yet';
+
+ok(upgrade_connect(uri => '/exact'), "handshake header fills buffer");
+
+}
 
 # bytes sent on upgraded connection
 # verify with 1) data actually read by client, 2) expected data from backend
