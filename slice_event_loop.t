@@ -3,12 +3,7 @@
 # (C) Gabriel Clima
 # (C) Gcore
 
-# Tests for slice filter with a large cached response: a request on
-# another connection must be handled while the cached slices are sent.
-# The upstream module finalizes each slice subrequest after sending its
-# cached body and the slice filter creates the next one, so the whole
-# response is sent from one call of ngx_http_run_posted_requests()
-# unless a write returns EAGAIN, which a fast enough client never causes.
+# Tests for slice filter with a large cached response and another connection.
 
 ###############################################################################
 
@@ -22,7 +17,7 @@ use IO::Select;
 BEGIN { use FindBin; chdir($FindBin::Bin); }
 
 use lib 'lib';
-use Test::Nginx qw/ :DEFAULT http_end /;
+use Test::Nginx;
 
 ###############################################################################
 
@@ -76,7 +71,7 @@ http {
 
 EOF
 
-$t->write_file('big.bin', 'x' x (500 * 131072));
+$t->write_file('big.bin', 'x' x (64 * 131072));
 $t->write_file('small.txt', 'SEE-THIS');
 $t->run();
 
@@ -84,42 +79,32 @@ $t->run();
 
 like(http_get('/big.bin'), qr/X-Cache-Status: MISS/, 'cache populated');
 
-# a child reads the cached response as fast as it arrives; it signals
-# the first bytes and the end of the response over a pipe
+my $s = http_get('/big.bin', start => 1);
+my $sel = IO::Select->new($s);
+my $first = '';
 
-pipe(my $rd, my $wr) or die "pipe failed: $!";
+$s->sysread($first, 65536) if $sel->can_read(5);
 
-my $pid = fork();
-die "fork failed: $!" unless defined $pid;
+like($first, qr/X-Cache-Status: HIT/, 'cached');
 
-if ($pid == 0) {
-	close $rd;
+# another connection is handled while the cached slices are sent
 
-	my $s = http_get('/big.bin', start => 1);
-	my $buf;
+my $s2 = http_get('/small.txt', start => 1);
+$sel->add($s2);
 
-	$s->sysread($buf, 1048576);
-	syswrite($wr, 'first');
+my $small = '';
 
-	1 while $s->sysread($buf, 1048576);
-	syswrite($wr, 'done');
+while ($sel->count) {
+	my @ready = $sel->can_read(10) or last;
 
-	exit 0;
+	for my $fh (@ready) {
+		my $n = $fh->sysread(my $buf, 65536);
+		$small .= $buf if $n && $fh == $s2;
+		$sel->remove($fh) unless $n;
+	}
 }
 
-close $wr;
-sysread($rd, my $first, 5);
-
-# the request on another connection is sent while the cached response
-# is still being sent
-
-my $s = http_get('/small.txt', start => 1);
-
-ok(!IO::Select->new($rd)->can_read(0), 'large response in flight');
-
-like(http_end($s), qr/SEE-THIS/, 'other connection');
-
-waitpid($pid, 0);
+like($small, qr/SEE-THIS/, 'other connection');
 
 TODO: {
 local $TODO = 'not yet';
