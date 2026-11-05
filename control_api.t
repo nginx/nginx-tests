@@ -240,7 +240,7 @@ like(raw("GET   /$v/nginx HTTP/1.0"), qr/200 OK/, 'spaces before URI');
 like(http("GET /$v/nginx HTTP/1.0\rX" . CRLF), qr/ 400/, 'CR no LF');
 like(http(" /$v/nginx HTTP/1.0" . CRLF), qr/ 400/, 'leading space');
 like(http('   ' . CRLF . CRLF), qr/ 400/, 'only spaces');
-ok(!http('GET /' . 'x' x 1048 . CRLF), 'oversize request');
+like(http('GET /' . 'x' x 1048 . CRLF), qr/ 400/, 'oversize request');
 like(raw("GET /$v/nginx  HTTP/1.0"), qr/200 OK/, 'extra space before HTTP');
 like(raw("GET /$v/nginx XTTP/1.0"), qr/ 400/, 'bad protocol');
 like(raw("GET /$v/nginx HXTP/1.0"), qr/ 400/, 'bad protocol 2nd char');
