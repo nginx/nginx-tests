@@ -51,17 +51,29 @@ http {
 EOF
 
 $t->write_file('index.html', '');
-$t->try_run('no max_headers')->plan(2);
+$t->try_run('no max_headers')->plan(4);
 
 ###############################################################################
 
 is(get('/', 5), '200', 'max headers');
 is(get('/', 6), '400', 'max headers reached');
 
+# cookie fields are collected separately, but are counted as well
+
+is(get('/', 5, 'cookie'), '200', 'max headers cookie');
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.9');
+
+is(get('/', 6, 'cookie'), '400', 'max headers reached cookie');
+
+}
+
 ###############################################################################
 
 sub get {
-	my ($uri, $count) = @_;
+	my ($uri, $count, $name) = @_;
+	$name = 'x-blah' unless defined $name;
 
 	my $h = [
 		{ name => ':method', value => 'GET', mode => 0 },
@@ -69,7 +81,7 @@ sub get {
 		{ name => ':path', value => '/', mode => 0 },
 		{ name => ':authority', value => 'localhost', mode => 1 }];
 
-	push @$h, map {{ name => 'x-blah', value => $_, mode => 2 }}
+	push @$h, map {{ name => $name, value => $_, mode => 2 }}
 		1 .. $count;
 
 	my $s = Test::Nginx::HTTP2->new();
