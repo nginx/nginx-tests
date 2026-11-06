@@ -11,6 +11,8 @@ use strict;
 
 use Test::More;
 
+use Socket qw/ SOL_SOCKET SO_RCVBUF /;
+
 BEGIN { use FindBin; chdir($FindBin::Bin); }
 
 use lib 'lib';
@@ -241,9 +243,14 @@ is(buffered(31), '3 1', 'buffered priority - 32 idle streams');
 is(buffered(32), '1 3', 'buffered priority - 33 idle streams');
 
 # trailers are queued along with the stream data, they must not hold back
-# a more urgent stream queued later while the client is not reading
+# a more urgent stream queued later while the client is not reading;
+# WSASend() accepts any amount of data
+
+SKIP: {
+skip 'win32', 3 if $^O eq 'MSWin32';
 
 $s = Test::Nginx::HTTP2->new(port(8082));
+$s->{socket}->setsockopt(SOL_SOCKET, SO_RCVBUF, 16384) or die $!;
 $s->h2_settings(0, 0x4 => 2**24);
 $s->h2_window(2**24);
 
@@ -268,6 +275,7 @@ is("@order", 'DATA:3 HEADERS:1', 'trailers');
 # one then consumes exactly what is left of it
 
 $s = Test::Nginx::HTTP2->new(port(8082));
+$s->{socket}->setsockopt(SOL_SOCKET, SO_RCVBUF, 16384) or die $!;
 $s->h2_settings(0, 0x4 => 2**24);
 $s->h2_window(2**17);
 
@@ -288,6 +296,8 @@ local $TODO = 'not yet' unless $t->has_version('1.31.9');
 
 is(grep({ $_->{type} eq 'HEADERS' && $_->{sid} == 1 } @$frames), 0,
 	'trailers - reset stream');
+
+}
 
 }
 
