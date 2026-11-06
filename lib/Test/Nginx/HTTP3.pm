@@ -62,6 +62,7 @@ sub new {
 	$self->{buf} = '';
 
 	$self->init();
+	$self->{scid} = $extra{scid} if defined $extra{scid};
 	$self->init_key_schedule();
 	$self->retry(%extra) or return;
 
