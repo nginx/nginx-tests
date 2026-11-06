@@ -22,7 +22,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http proxy cache gzip rewrite/)
-	->plan(52)->write_file_expand('nginx.conf', <<'EOF');
+	->plan(57)->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
 
@@ -88,6 +88,16 @@ http {
             add_header Vary "*";
         }
 
+        location /asterisk2 {
+            gzip off;
+            add_header Vary "Accept-Encoding, *";
+        }
+
+        location /htab {
+            gzip off;
+            add_header Vary "Accept-Encoding,	Foo";
+        }
+
         location /complex {
             gzip off;
             add_header Vary ",, Accept-encoding , ,";
@@ -111,6 +121,8 @@ EOF
 
 $t->write_file('index.html', 'SEE-THIS');
 $t->write_file('asterisk', 'SEE-THIS');
+$t->write_file('asterisk2', 'SEE-THIS');
+$t->write_file('htab', 'SEE-THIS');
 $t->write_file('complex', 'SEE-THIS');
 $t->write_file('multi', 'SEE-THIS');
 $t->write_file('cold', 'SEE-THIS');
@@ -228,6 +240,34 @@ like(get('/complex', 'deflate'), qr/HIT/ms, 'vary complex second cached');
 
 like(get('/asterisk', 'gzip'), qr/MISS/ms, 'vary asterisk first');
 like(get('/asterisk', 'gzip'), qr/MISS/ms, 'vary asterisk second');
+
+# From RFC 9111, "4.1. Calculating Cache Keys with the Vary Header Field",
+# https://www.rfc-editor.org/rfc/rfc9111#section-4.1:
+#
+#    A stored response with a Vary header field value containing
+#    a member "*" always fails to match.
+
+like(get('/asterisk2', 'gzip'), qr/MISS/ms, 'vary asterisk in list first');
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.9');
+
+like(get('/asterisk2', 'gzip'), qr/MISS/ms, 'vary asterisk in list second');
+
+}
+
+# HTAB is allowed as whitespace between list members
+
+like(get1('/htab', "Foo: a"), qr/MISS/ms, 'vary htab first');
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.9');
+
+like(get1('/htab', "Foo: b"), qr/MISS/ms, 'vary htab second');
+
+}
+
+like(get1('/htab', "Foo: a"), qr/HIT/ms, 'vary htab first cached');
 
 # From RFC 7234, "4.1. Calculating Secondary Keys with Vary",
 # http://tools.ietf.org/html/rfc7234#section-4.1:
