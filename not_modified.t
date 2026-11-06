@@ -21,7 +21,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has('http')->plan(15)
+my $t = Test::Nginx->new()->has(qw/http proxy cache/)->plan(17)
 	->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
@@ -34,6 +34,9 @@ events {
 http {
     %%TEST_GLOBALS_HTTP%%
 
+    proxy_cache_path	%%TESTDIR%%/cache	levels=1:2
+			keys_zone=test:1m;
+
     server {
         listen       127.0.0.1:8080;
         server_name  localhost;
@@ -41,12 +44,33 @@ http {
         location / {
             if_modified_since before;
         }
+
+        location /w {
+            proxy_pass http://127.0.0.1:8081/;
+            proxy_cache test;
+            proxy_cache_valid 200 1h;
+            proxy_cache_bypass 1;
+            proxy_set_header If-Match "";
+            proxy_set_header If-None-Match "";
+        }
+    }
+
+    server {
+        listen       127.0.0.1:8081;
+        server_name  localhost;
+
+        location / {
+            etag off;
+            add_header ETag "W/\"weaktag\"";
+            return 200 "";
+        }
     }
 }
 
 EOF
 
 $t->write_file('t', '');
+$t->write_file('w', '');
 
 $t->run();
 
@@ -90,6 +114,15 @@ like(http_get_im('/t', 'W/' . $etag), qr/ 412 /, 'if-match weak fail');
 # server MUST ignore precondition if its response wouldn't be 2xx or 412
 
 like(http_get_im('/nx', '"foo"'), qr/ 404 /, 'if-match ignored with 404');
+
+# RFC 9110, 8.8.3.2: strong comparison treats a weak entity-tag as never
+# matching, so If-Match against a weak server ETag always fails, even if
+# the opaque-tags are byte-identical.
+
+like(http_get_im('/w', 'W/"weaktag"'), qr/ 412 /,
+	'if-match weak server etag fail');
+like(http_get_im('/w', '"weaktag"'), qr/ 412 /,
+	'if-match strong client against weak server fail');
 
 ###############################################################################
 
