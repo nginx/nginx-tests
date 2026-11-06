@@ -22,7 +22,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy cache rewrite/)->plan(20);
+my $t = Test::Nginx->new()->has(qw/http proxy cache rewrite/)->plan(23);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -57,6 +57,18 @@ http {
 
             proxy_ignore_headers Cache-Control Expires;
             proxy_ignore_headers X-Accel-Expires;
+        }
+
+        location /stale-if-error-overflow {
+            proxy_pass  http://127.0.0.1:8081;
+            proxy_cache NAME;
+            proxy_cache_key stale-if-error-overflow;
+        }
+
+        location /stale-if-error-overflow-down {
+            proxy_pass  http://127.0.0.1:8082;
+            proxy_cache NAME;
+            proxy_cache_key stale-if-error-overflow;
         }
     }
 
@@ -178,6 +190,26 @@ http {
             return 204;
         }
 
+        location /x-accel-expires-overflow {
+            # largest value on 64-bit, Cache-Control is used on 32-bit
+            add_header X-Accel-Expires 9223372036854775807;
+            add_header Cache-Control max-age=60;
+            return 204;
+        }
+
+        location /stale-while-revalidate-overflow {
+            # sufficiently large for 32-bit and 64-bit representations
+            add_header X-Accel-Expires @1;
+            add_header Cache-Control stale-while-revalidate=9223372036854775808;
+            return 204;
+        }
+
+        location /stale-if-error-overflow {
+            add_header X-Accel-Expires @1;
+            add_header Cache-Control stale-if-error=9223372036854775808;
+            return 204;
+        }
+
         location /set-cookie {
             add_header Set-Cookie foo;
             add_header Expires "Thu, 01 Jan 1970 00:00:01 GMT";
@@ -249,6 +281,21 @@ like(get('/extension-before-x-accel-expires'),
 	qr/STALE/, 'cache-control extensions before x-accel-expires');
 like(get('/extension-after-x-accel-expires'),
 	qr/STALE/, 'cache-control extensions after x-accel-expires');
+
+# overflowing calculations with large values
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.9');
+
+like(get('/x-accel-expires-overflow'), qr/HIT/, 'x-accel-expires overflow');
+like(get('/stale-while-revalidate-overflow'), qr/STALE/,
+	'stale-while-revalidate overflow');
+
+http_get('/stale-if-error-overflow');
+like(http_get('/stale-if-error-overflow-down'), qr/STALE/,
+	'stale-if-error overflow');
+
+}
 
 # Set-Cookie is considered when caching with Cache-Control
 
