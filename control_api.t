@@ -242,7 +242,7 @@ like(http(" /$v/nginx HTTP/1.0" . CRLF), qr/ 400/, 'leading space');
 like(http('   ' . CRLF . CRLF), qr/ 400/, 'only spaces');
 
 TODO: {
-	local $TODO = 'not yet' unless $t->has_version('1.39.9');
+	local $TODO = 'not yet' unless $t->has_version('1.31.9');
 
 	like(http('GET /' . 'x' x 1048 . CRLF), qr/ 400/, 'oversize request');
 }
