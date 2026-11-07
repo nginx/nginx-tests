@@ -91,7 +91,7 @@ http {
 
     server {
         listen       127.0.0.1:8080 ssl;
-        server_name  variable-no-pass;
+        server_name  var-no-pass;
 
         ssl_certificate pass.crt;
         ssl_certificate_key store:file:%%TESTDIR%%/$pass.key;
@@ -150,7 +150,7 @@ like(get('pass'), qr/pass/, 'encrypted context');
 like(cert('variable-pass'), qr/CN=pass/, 'encrypted key - vars');
 like(get('variable-pass'), qr/variable-pass/, 'encrypted context - vars');
 
-is(cert('variable-no-pass'), undef, 'encrypted key - no pass');
+is(cert('var-no-pass'), undef, 'encrypted key - no pass');
 
 ###############################################################################
 
