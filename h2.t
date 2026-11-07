@@ -302,12 +302,17 @@ is($frame, undef, 'HEAD - no body');
 
 # CONNECT
 
+TODO: {
+local $TODO = 'not yet';
+
 $s = Test::Nginx::HTTP2->new();
 $sid = $s->new_stream({ method => 'CONNECT' });
 $frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
 
 ($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
-is($frame->{headers}->{':status'}, 405, 'CONNECT - not allowed');
+is($frame->{headers}->{':status'}, 400, 'CONNECT - malformed');
+
+}
 
 # TRACE
 
