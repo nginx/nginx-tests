@@ -44,6 +44,7 @@ sub new {
 	$self->{psk_list} = $extra{psk_list} || [];
 	$self->{early_data} = $extra{early_data};
 	$self->{send_ack} = 1;
+	$self->{ack_ecn} = $extra{ack_ecn};
 
 	$self->{sni} = exists $extra{sni} ? $extra{sni} : 'localhost';
 	$self->{cipher} = 0x1301;
@@ -1580,7 +1581,8 @@ sub handle_frames {
 		}
 	}
 
-	my $send_ack = $self->encrypt_aead(build_ack($ack), $level);
+	my $send_ack = $self->encrypt_aead(build_ack($ack, $self->{ack_ecn}),
+		$level);
 	$self->{socket}->syswrite($send_ack) if $self->{send_ack};
 
 	for my $pn (keys %$ack) {
@@ -2044,10 +2046,15 @@ sub build_cc {
 }
 
 sub build_ack {
-	my ($ack) = @_;
+	my ($ack, $ecn) = @_;
 	my @keys = sort { $b <=> $a } keys %$ack;
+	my $type = $ecn ? "\x03" : "\x02";
 
-	return "\x02" . build_int($keys[0]) . "\x00\x00\x00" if @keys == 1;
+	# ECN counts (ect0, ect1, ce); nginx sends Not-ECT, so all zero
+	my $counts = $ecn ? "\x00\x00\x00" : "";
+
+	return $type . build_int($keys[0]) . "\x00\x00\x00" . $counts
+		if @keys == 1;
 
 	my $min = my $max = shift @keys;
 	my @acks = ();
@@ -2063,7 +2070,7 @@ sub build_ack {
 	($max, $min) = splice @acks, 0, 2;
 	my $ranges = @acks / 2;
 
-	$ack = "\x02" . build_int($max) . "\x00" . build_int($ranges)
+	$ack = $type . build_int($max) . "\x00" . build_int($ranges)
 		. build_int($max - $min);
 
 	for (my $smallest = $min; $ranges--; ) {
@@ -2073,7 +2080,7 @@ sub build_ack {
 		$smallest = $min;
 	}
 
-	return $ack;
+	return $ack . $counts;
 }
 
 sub build_crypto {
