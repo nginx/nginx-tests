@@ -1412,6 +1412,17 @@ sub parse_frames {
 			($len, $val) = parse_int(substr($buf, $offset));
 			$frame->{first} = $val;
 			$offset += $len;
+			my $min = $frame->{largest} - $frame->{first};
+			$frame->{ranges} = [[$min, $frame->{largest}]];
+			for (1 .. $frame->{count}) {
+				($len, $val) = parse_int(substr($buf, $offset));
+				$offset += $len;
+				my $max = $min - $val - 2;
+				($len, $val) = parse_int(substr($buf, $offset));
+				$offset += $len;
+				$min = $max - $val;
+				push @{$frame->{ranges}}, [$min, $max];
+			}
 		}
 		if ($type == 4) {
 			$frame->{type} = 'RESET_STREAM';
@@ -1578,6 +1589,13 @@ sub handle_frames {
 				delete $ack->{$pn} if $ack->{$pn} == $num;
 			}
 		}
+	}
+
+	# packet numbers acknowledged by peer
+
+	for my $frame (grep { $_->{type} eq 'ACK' } @$frames) {
+		$self->{acked}[$level]{$_} = 1
+			for map { $_->[0] .. $_->[1] } @{$frame->{ranges}};
 	}
 
 	my $send_ack = $self->encrypt_aead(build_ack($ack), $level);
@@ -1819,7 +1837,7 @@ sub encrypt_aead_f {
 }
 
 sub encrypt_aead {
-	my ($self, $payload, $level) = @_;
+	my ($self, $payload, $level, $pn) = @_;
 
 	if ($level == 0) {
 		my $padding = 1200 - length($payload);
@@ -1827,7 +1845,7 @@ sub encrypt_aead {
 		$payload = $payload . pack("x$padding");
 	}
 
-	my $pn = ++$self->{pn}[0][$level];
+	$pn = ++$self->{pn}[0][$level] if !defined $pn;
 	my $ad = pack("C", $level == 3
 		? 0x40 | ($self->{key_phase} << 2)
 		: 0xc + $level << 4) | "\x03";
