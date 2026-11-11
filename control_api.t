@@ -11,6 +11,9 @@ use strict;
 
 use Test::More;
 
+use Errno;
+use IO::Socket::INET;
+use POSIX qw/ mkfifo /;
 use Socket qw/ CRLF /;
 
 BEGIN { use FindBin; chdir($FindBin::Bin); }
@@ -60,7 +63,7 @@ $t->write_file('inc.conf', '#inc.conf');
 my $d = $t->testdir();
 my $p = port(8080);
 
-$t->args('-l', '127.0.0.1:' . $p)->run()->plan(96);
+$t->args('-l', '127.0.0.1:' . $p)->run()->plan(125);
 
 my $v = (sort { $a <=> $b } @{ api() })[-1];
 
@@ -155,6 +158,146 @@ like(api('/control/config')->[0]{content}, qr/bar/, 'in memory config reread');
 is(scalar @{ api('/control/processes') }, scalar @$procs,
 	'exited processes skipped');
 
+my $master = $t->read_file('nginx.pid');
+
+SKIP: {
+skip 'not yet', 25 unless $t->has_version('1.31.9');
+
+# config check
+
+my $workers = api('/control/processes');
+
+my $r = get('/control/config/check');
+
+like($r, qr/^HTTP\/1.1 200 OK/, 'check');
+is_deeply(body($r), { logs => [] }, 'check no logs');
+like(get('/control/config/check/'), qr/ 200 OK/, 'check trailing slash');
+
+$t->write_file('inc.conf', 'types { text/plain t; text/html t; }');
+
+$r = get('/control/config/check');
+
+like($r, qr/ 200 OK/, 'check warning');
+like(join("\n", @{ body($r)->{logs} // [] }),
+	qr/\[warn\].*duplicate extension/, 'check warning logs');
+
+$t->write_file('inc.conf', 'unknown_directive;');
+
+$r = get('/control/config/check');
+
+my $logs = body($r)->{logs} // [];
+
+like($r, qr/^HTTP\/1.1 422 Unprocessable Entity/, 'check invalid');
+is(scalar @$logs, 1, 'check invalid logs');
+like($logs->[0] // '',
+	qr/\[emerg\] .*unknown directive "unknown_directive" in \Q$d\E/,
+	'check invalid emerg');
+
+$t->write_file('inc.conf', 'include nonexistent.conf;');
+$r = get('/control/config/check');
+
+like($r, qr/ 422 .*nonexistent\.conf.*No such/s, 'check missing include');
+
+$t->write_file_expand('nginx.conf', 'bad config');
+$r = get('/control/config/check');
+
+like($r, qr/ 422 .*unexpected end of file/s, 'check syntax error');
+
+SKIP: {
+skip 'must not be root', 4 if $> == 0;
+
+mkdir("$d/ro");
+chmod(0555, "$d/ro");
+
+$t->write_file('inc.conf', "server { listen unix:$d/ro/sock; }");
+$t->write_file_expand('nginx.conf', $conf =~ s/%%RETURN%%/bar/r);
+
+$r = get('/control/config/check');
+
+like($r, qr/ 422 /, 'check bad listen');
+is_deeply(body($r), { logs => [] }, 'check bad listen no logs');
+like($t->read_file('error.log'),
+	qr/\[emerg\] .*bind\(\) to unix:\Q$d\E\/ro\/sock failed \(13: /,
+	'check bad listen error log');
+ok(!-e "$d/ro/sock", 'check bad listen no socket');
+
+}
+
+SKIP: {
+skip 'can bind privileged port', 3 if can_bind_privileged();
+
+$t->write_file('inc.conf', 'server { listen 127.0.0.1:1; }');
+$t->write_file_expand('nginx.conf', $conf =~ s/%%RETURN%%/bar/r);
+
+$r = get('/control/config/check');
+
+like($r, qr/ 422 /, 'check privileged port');
+is_deeply(body($r), { logs => [] }, 'check privileged port no logs');
+like($t->read_file('error.log'),
+	qr/\[emerg\] .*bind\(\) to 127\.0\.0\.1:1 failed \(13: /,
+	'check privileged port error log');
+
+}
+
+# the check does not apply the configuration
+
+$t->write_file('inc.conf', '#inc.conf');
+$t->write_file_expand('nginx.conf', $conf =~ s/%%RETURN%%/baz/r);
+
+$r = get('/control/config/check');
+
+like($r, qr/ 200 OK/, 'check changed config');
+
+like(http_get('/', PeerAddr => '127.0.0.1:' . port(8081)), qr/bar/,
+	'check config not applied');
+like(api('/control/config')->[0]{content}, qr/bar/,
+	'check in memory config kept');
+is_deeply(api('/control/processes'), $workers, 'check workers kept');
+is($t->read_file('nginx.pid'), $master, 'check pid file kept');
+
+like(get('/control/config/checx'), qr/ 404/, 'unknown check');
+like(get('/control/config/checks'), qr/ 404/, 'longer check');
+
+is(scalar(grep { /^Z/ } `ps -o stat= --ppid $master 2>/dev/null`), 0,
+	'check processes reaped');
+
+}
+
+# a check which does not finish in time is killed
+
+SKIP: {
+skip 'not yet', 4 unless $t->has_version('1.31.9');
+skip 'long test', 4 unless $ENV{TEST_NGINX_UNSAFE};
+
+$t->todo_alerts();
+
+unlink("$d/inc.conf");
+mkfifo("$d/inc.conf", 0600) or die "Can't create FIFO: $!\n";
+
+my $s = get('/control/config/check', start => 1);
+
+my $r = eval {
+	local $SIG{ALRM} = sub { die "timeout\n" };
+	local $/;
+	alarm(45);
+	my $reply = $s->getline();
+	alarm(0);
+	$reply;
+};
+alarm(0);
+
+unlink("$d/inc.conf");
+$t->write_file('inc.conf', '#inc.conf');
+
+like($r // '', qr/^HTTP\/1.1 408 Request Timeout/, 'check timeout');
+like($r // '', qr/^HTTP\/1.1 408 .*Content-Length: 0\x0d?\x0a/s,
+	'check timeout empty body');
+like($t->read_file('error.log'),
+	qr/\[alert\] .*process \d+ exited on signal 9/, 'check timeout killed');
+like(get('/nginx'), qr/"version"/, 'healthy after check timeout');
+
+}
+
 # connection resilience
 
 http('', start => 1);
@@ -170,8 +313,6 @@ like(raw("inx HTTP/1.0", socket => $s), qr/"version"/,
 	'request split across reads');
 
 # accept queue drained, SIGIO coalesces while blocked
-
-my $master = $t->read_file('nginx.pid');
 
 kill 'STOP', $master;
 my @s = map { get('/nginx', start => 1) } 1 .. 3;
@@ -291,6 +432,14 @@ sub api_patch {
 	return JSON::PP::decode_json($body);
 }
 
+sub body {
+	my ($r) = @_;
+
+	my ($body) = $r =~ /.*?\x0d\x0a?\x0d\x0a?(.*)/ms;
+
+	return eval { JSON::PP::decode_json($body) } // {};
+}
+
 sub get {
 	my ($uri, %extra) = @_;
 
@@ -320,6 +469,17 @@ sub waitforworker {
 		last if $t->read_file('error.log') =~ /exited with code/;
 		select undef, undef, undef, 0.2;
 	}
+}
+
+sub can_bind_privileged {
+	my $s = IO::Socket::INET->new(
+		Proto => 'tcp',
+		LocalAddr => '127.0.0.1:1',
+		Listen => 1,
+	);
+
+	return 1 if $s or $! != Errno::EACCES;
+	return 0;
 }
 
 ###############################################################################
