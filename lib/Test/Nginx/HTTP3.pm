@@ -274,7 +274,7 @@ sub ping {
 	$level = 3 if !defined $level;
 	$pad = 4 if !defined $pad;
 	my $frame = "\x01" . "\x00" x ($pad - 1);
-	$self->{socket}->syswrite($self->encrypt_aead($frame, $level));
+	$self->raw_write($frame, $level);
 }
 
 sub reset_stream {
@@ -295,13 +295,13 @@ sub new_connection_id {
 	my ($self, $seqno, $ret, $id, $token) = @_;
 	my $frame = "\x18" . build_int($seqno) . build_int($ret)
 		. pack("C", length($id)) . $id . $token;
-	$self->{socket}->syswrite($self->encrypt_aead($frame, 3));
+	$self->raw_write($frame);
 }
 
 sub path_challenge {
 	my ($self, $data) = @_;
 	my $frame = "\x1a" . $data;
-	$self->{socket}->syswrite($self->encrypt_aead($frame, 3));
+	$self->raw_write($frame);
 }
 
 sub path_response {
