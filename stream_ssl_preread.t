@@ -24,8 +24,8 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/stream stream_map stream_ssl_preread/)
-	->has(qw/stream_ssl stream_return socket_ssl_sni/)
-	->has_daemon('openssl')->plan(13)
+	->has(qw/stream_ssl stream_return stream_limit_conn socket_ssl_sni/)
+	->has_daemon('openssl')->plan(15)
 	->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
@@ -39,6 +39,9 @@ stream {
     %%TEST_GLOBALS_STREAM%%
 
     log_format status $status;
+    log_format sni $ssl_preread_server_name;
+
+    limit_conn_zone $ssl_preread_server_name zone=preread:1m;
 
     map $ssl_preread_server_name $name {
         ""       127.0.0.1:8093;
@@ -92,6 +95,13 @@ stream {
 
         proxy_connect_timeout  2s;
         preread_buffer_size    8;
+    }
+
+    server {
+        listen       127.0.0.1:8085;
+        proxy_pass   $name;
+        limit_conn   preread 1;
+        access_log   %%TESTDIR%%/sni.log sni;
     }
 
     ssl_certificate_key localhost.key;
@@ -163,9 +173,26 @@ is(get_oldver(), 'foo', 'older version in ssl record');
 
 is(get_frag(), 'foof', 'handshake fragment split on SNI');
 
+# the variable evaluated before the preread phase, as a limit_conn key,
+# must not keep the empty value for the map and the log
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.10');
+
+is(get_ssl('foo', 8085), $p1, 'preread variable evaluated early');
+
+}
+
 $t->stop();
 
 is($t->read_file('status.log'), "400\n", 'preread buffer full - log');
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.10');
+
+is($t->read_file('sni.log'), "foo\n", 'preread variable evaluated early - log');
+
+}
 
 ###############################################################################
 
