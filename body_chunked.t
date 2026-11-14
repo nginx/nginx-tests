@@ -22,7 +22,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(18);
+my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(30);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -68,6 +68,8 @@ http {
         }
         location /large {
             client_max_body_size 1k;
+            client_body_buffer_size 2k;
+            client_body_timeout 1s;
             proxy_pass http://127.0.0.1:8081;
         }
         location /discard {
@@ -119,6 +121,8 @@ like(http_get_body('/single', '0123456789' x 128),
 	qr/X-Body: (0123456789){128}\x0d?$/ms, 'body in single buffer');
 
 like(http_get_body('/large', '0123456789' x 128), qr/ 413 /, 'body too large');
+like(http_get_body('/large', 'X' x 1024), qr/ 200 /, 'body exact limit');
+like(http_get_body('/large', 'X' x 1025), qr/ 413 /, 'body just above limit');
 
 # pipelined requests
 
@@ -161,6 +165,145 @@ like(
 	),
 	qr/400 Bad/, 'runaway chunk discard'
 );
+
+# chunk extensions and trailers
+
+like(
+	http(
+		'GET /large HTTP/1.1' . CRLF
+		. 'Host: localhost' . CRLF
+		. 'Connection: close' . CRLF
+		. 'Transfer-Encoding: chunked' . CRLF . CRLF
+		. ('1; foo' . CRLF . 'X' . CRLF) x 16
+		. '0' . CRLF . CRLF
+	),
+	qr/ 200 /, 'chunk extensions'
+);
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.9');
+
+like(
+	http(
+		'GET /large HTTP/1.1' . CRLF
+		. 'Host: localhost' . CRLF
+		. 'Connection: close' . CRLF
+		. 'Transfer-Encoding: chunked' . CRLF . CRLF
+		. ('1; foo' . CRLF . 'X' . CRLF) x 512
+		. '0' . CRLF . CRLF
+	),
+	qr/ 413 /, 'too many chunk extensions'
+);
+
+}
+
+like(
+	http(
+		'GET /large HTTP/1.1' . CRLF
+		. 'Host: localhost' . CRLF
+		. 'Connection: close' . CRLF
+		. 'Transfer-Encoding: chunked' . CRLF . CRLF
+		. '1' . CRLF . 'X' . CRLF
+		. '0' . CRLF . ('X-Trailer: foo' . CRLF) x 16 . CRLF
+	),
+	qr/ 200 /, 'trailers'
+);
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.9');
+
+like(
+	http(
+		'GET /large HTTP/1.1' . CRLF
+		. 'Host: localhost' . CRLF
+		. 'Connection: close' . CRLF
+		. 'Transfer-Encoding: chunked' . CRLF . CRLF
+		. '1' . CRLF . 'X' . CRLF
+		. '0' . CRLF . ('X-Trailer: foo' . CRLF) x 512 . CRLF
+	),
+	qr/ 413 /, 'too many trailers'
+);
+
+}
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.9');
+
+like(
+	http(
+		'GET /large HTTP/1.1' . CRLF
+		. 'Host: localhost' . CRLF
+		. 'Connection: close' . CRLF
+		. 'Transfer-Encoding: chunked' . CRLF . CRLF
+		. '0; foo=' . ('X' x 1500) . CRLF . CRLF
+	),
+	qr/ 413 /, 'large last chunk extension'
+);
+
+like(
+	http(
+		'GET /large HTTP/1.1' . CRLF
+		. 'Host: localhost' . CRLF
+		. 'Connection: close' . CRLF
+		. 'Transfer-Encoding: chunked' . CRLF . CRLF
+		. '0' . CRLF . 'X-Trailer: ' . ('X' x 1500) . CRLF . CRLF
+	),
+	qr/ 413 /, 'large trailer header'
+);
+
+like(
+	http(
+		'GET /large HTTP/1.1' . CRLF
+		. 'Host: localhost' . CRLF
+		. 'Connection: close' . CRLF
+		. 'Transfer-Encoding: chunked' . CRLF . CRLF
+		. '0' . CRLF . ('a' . CRLF) x 1025 . CRLF
+	),
+	qr/ 413 /, 'too many short trailers'
+);
+
+}
+
+like(
+	http(
+		'GET /large HTTP/1.1' . CRLF
+		. 'Host: localhost' . CRLF
+		. 'Connection: close' . CRLF
+		. 'Transfer-Encoding: chunked' . CRLF . CRLF
+		. '0' . CRLF . ('a' . CRLF) x 1024 . CRLF
+	),
+	qr/ 200 /, 'short trailers'
+);
+
+# incomplete chunk extension and trailer header, so that the limit
+# is checked while waiting for more data
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.9');
+
+like(
+	http(
+		'GET /large HTTP/1.1' . CRLF
+		. 'Host: localhost' . CRLF
+		. 'Connection: close' . CRLF
+		. 'Transfer-Encoding: chunked' . CRLF . CRLF
+		. '1; ' . ('X' x 1500)
+	),
+	qr/ 413 /, 'incomplete chunk extension'
+);
+
+like(
+	http(
+		'GET /large HTTP/1.1' . CRLF
+		. 'Host: localhost' . CRLF
+		. 'Connection: close' . CRLF
+		. 'Transfer-Encoding: chunked' . CRLF . CRLF
+		. '0' . CRLF . 'X-Trailer: ' . ('X' x 1500)
+	),
+	qr/ 413 /, 'incomplete trailer header'
+);
+
+}
 
 # proxy_next_upstream
 
