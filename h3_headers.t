@@ -24,7 +24,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http http_v3 proxy rewrite cryptx/)
-	->has_daemon('openssl')->plan(75)
+	->has_daemon('openssl')->plan(80)
 	->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
@@ -44,6 +44,7 @@ http {
         listen       127.0.0.1:%%PORT_8980_UDP%% quic;
         listen       127.0.0.1:8081;
         server_name  localhost;
+        reject_leading_trailing_whitespace_client on;
 
         location / {
             add_header X-Sent-Foo $http_x_foo;
@@ -710,28 +711,38 @@ $frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
 is($frame->{headers}->{':status'}, 400, 'header size indexed greater');
 
 # ensure that request header field value with newline doesn't get split
-#
-# 10.3.  Intermediary-Encapsulation Attacks
-#   Requests or responses containing invalid field names MUST be treated
-#   as malformed.
+my $malformed_values = 0;
+foreach my $malformed_value (
+    "x-bar\rreferrer: baz",
+    "x-bar\0referrer: junk",
+    "x-bar\nreferrer: junk",
+    " leading space",
+    "\tleading tab",
+    "trailing space ",
+    "trailing tab\t",
+) {
+	$malformed_values += 1;
+	subtest "Malformed value test $malformed_values" => sub {
+		plan tests => 2;
 
-$s = Test::Nginx::HTTP3->new();
-$sid = $s->new_stream({ headers => [
-	{ name => ':method', value => 'GET', mode => 0 },
-	{ name => ':scheme', value => 'http', mode => 0 },
-	{ name => ':path', value => '/proxy2/', mode => 2 },
-	{ name => ':authority', value => 'localhost', mode => 2 },
-	{ name => 'x-foo', value => "x-bar\r\nreferer:see-this", mode => 4 }]});
-$frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
+		$s = Test::Nginx::HTTP3->new();
+		$sid = $s->new_stream({ headers => [
+			{ name => ':method', value => 'GET', mode => 0 },
+			{ name => ':scheme', value => 'http', mode => 0 },
+			{ name => ':path', value => '/proxy2/', mode => 2 },
+			{ name => ':authority', value => 'localhost', mode => 2 },
+			{ name => 'x-foo', value => $malformed_value, mode => 4 }]});
+		$frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
 
-# 10.3.  Intermediary Encapsulation Attacks
-#   Therefore, an intermediary cannot translate an HTTP/3 request or response
-#   containing an invalid field name into an HTTP/1.1 message.
+		# 10.3.  Intermediary Encapsulation Attacks
+		#   Therefore, an intermediary cannot translate an HTTP/3 request or response
+		#   containing an invalid field name into an HTTP/1.1 message.
 
-($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
-isnt($frame->{headers}->{'x-referer'}, 'see-this', 'newline in request header');
-
-is($frame->{headers}->{':status'}, 400, 'newline in request header - bad request');
+		($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
+		is($frame->{headers}->{'x-foo'}, undef, 'malformed header not forwarded');
+		is($frame->{headers}->{':status'}, 400, 'bad request');
+	}
+}
 
 # invalid header name as seen with underscore should not lead to ignoring rest
 
