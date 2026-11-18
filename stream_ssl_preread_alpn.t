@@ -24,8 +24,8 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/stream stream_map stream_ssl_preread/)
-	->has(qw/stream_ssl stream_return socket_ssl_alpn/)
-	->has_daemon('openssl')->plan(5)
+	->has(qw/stream_ssl stream_return stream_limit_conn socket_ssl_alpn/)
+	->has_daemon('openssl')->plan(6)
 	->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
@@ -42,6 +42,8 @@ stream {
         ""       127.0.0.1:8093;
         default  $ssl_preread_alpn_protocols;
     }
+
+    limit_conn_zone $ssl_preread_alpn_protocols zone=alpn:1m;
 
     upstream foo {
         server 127.0.0.1:8091;
@@ -60,6 +62,12 @@ stream {
     server {
         listen       127.0.0.1:8081;
         proxy_pass   $name;
+    }
+
+    server {
+        listen       127.0.0.1:8082;
+        proxy_pass   $name;
+        limit_conn   alpn 1;
     }
 
     ssl_certificate_key localhost.key;
@@ -109,6 +117,16 @@ is(get_ssl(8081, 'bar'), $p2, 'alpn 2 again');
 is(get_ssl(8081, 'foo', 'bar'), $p3, 'alpn many');
 
 get_ssl(8081, '');
+
+# the variable evaluated before the preread phase, as a limit_conn key,
+# must not keep the empty value for the map
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.10');
+
+is(get_ssl(8082, 'foo'), $p1, 'alpn evaluated early');
+
+}
 
 ###############################################################################
 
