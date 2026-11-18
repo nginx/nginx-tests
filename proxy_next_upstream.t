@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 
 # (C) Maxim Dounin
+# (C) Nginx, Inc.
 
 # Tests for http proxy module, proxy_next_upstream directive.
 
@@ -21,7 +22,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(8);
+my $t = Test::Nginx->new()->has(qw/http proxy rewrite/);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -50,6 +51,15 @@ http {
         server 127.0.0.1:8082 down;
     }
 
+    upstream u4 {
+        server 127.0.0.1:8081;
+    }
+
+    upstream u5 {
+        server 127.0.0.1:8083;
+        server 127.0.0.1:8084;
+    }
+
     server {
         listen       127.0.0.1:8080;
         server_name  localhost;
@@ -73,6 +83,83 @@ http {
         location /down {
             proxy_pass http://u3;
             proxy_next_upstream http_404;
+        }
+
+        # no_live reinitializes peer selection once every peer has been
+        # tried, so that retries continue up to proxy_next_upstream_tries
+
+        location = /no_live {
+            proxy_pass http://u2/all/;
+            proxy_next_upstream http_404 no_live;
+            proxy_next_upstream_tries 3;
+            proxy_intercept_errors on;
+            error_page 404 = /no_live/status;
+        }
+
+        # a single server, retried more times than there are servers
+
+        location = /no_live/single {
+            proxy_pass http://u4/all/;
+            proxy_next_upstream http_404 no_live;
+            proxy_next_upstream_tries 3;
+            proxy_intercept_errors on;
+            error_page 404 = /no_live/addr;
+        }
+
+        # an upstream created from an address rather than an upstream block
+
+        location = /no_live/resolved {
+            set $back 127.0.0.1:%%PORT_8081%%;
+            proxy_pass http://$back/all/;
+            proxy_next_upstream http_404 no_live;
+            proxy_next_upstream_tries 3;
+            proxy_intercept_errors on;
+            error_page 404 = /no_live/status;
+        }
+
+        # without proxy_next_upstream_tries there is nothing to retry up to,
+        # and peers are tried once
+
+        location = /no_live/unlimited {
+            proxy_pass http://u2/all/;
+            proxy_next_upstream http_404 no_live;
+            proxy_intercept_errors on;
+            error_page 404 = /no_live/status;
+        }
+
+        # peers disabled by max_fails are retried as well
+
+        location = /no_live/dead {
+            proxy_pass http://u5;
+            proxy_next_upstream error no_live;
+            proxy_next_upstream_tries 4;
+            proxy_intercept_errors on;
+            error_page 502 = /no_live/status;
+        }
+
+        location = /no_live/status {
+            return 200 "x${upstream_status}x";
+        }
+
+        location = /no_live/addr {
+            return 200 "x${upstream_addr}x";
+        }
+
+        # each upstream request has its own proxy_next_upstream_tries budget
+
+        location = /chain {
+            proxy_pass http://u2/all/;
+            proxy_next_upstream http_404;
+            proxy_next_upstream_tries 2;
+            proxy_intercept_errors on;
+            error_page 404 = /chain/second;
+        }
+
+        location = /chain/second {
+            proxy_pass http://u2/all/;
+            proxy_next_upstream http_404;
+            proxy_next_upstream_tries 2;
+            add_header X-Upstream-Status "x${upstream_status}x" always;
         }
     }
 
@@ -111,7 +198,7 @@ http {
 
 EOF
 
-$t->run();
+$t->try_run('no no_live')->plan(14);
 
 ###############################################################################
 
@@ -147,5 +234,27 @@ like(http_get('/all/rr'),
 # after all backends are tried with http_404
 
 like(http_get('/down/'), qr/Not Found/, 'all tried with down');
+
+# make sure peers are tried again once all of them have been tried
+
+like(http_get('/no_live'), qr/x404, 404, 404x/, 'no_live');
+like(http_get('/no_live/single'),
+	qr/x127.0.0.1:$p1, 127.0.0.1:$p1, 127.0.0.1:${p1}x/,
+	'no_live single server');
+like(http_get('/no_live/resolved'), qr/x404, 404, 404x/, 'no_live resolved');
+
+# make sure no_live alone does not change anything
+
+like(http_get('/no_live/unlimited'), qr/x404, 404x/, 'no_live no tries');
+
+# make sure peers disabled by max_fails are retried as well
+
+like(http_get('/no_live/dead'), qr/x502, 502, 502, 502x/, 'no_live no live');
+
+# make sure a second upstream request in the same request is not limited
+# by the attempts for the first one
+
+like(http_get('/chain'), qr/x404, 404 : 404, 404x/,
+	'tries per upstream request');
 
 ###############################################################################
