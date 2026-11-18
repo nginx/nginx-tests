@@ -24,7 +24,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http dav/)->plan(94);
+my $t = Test::Nginx->new()->has(qw/http dav/)->plan(96);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -457,6 +457,17 @@ $r = http_copy('/srcdir_tree/', '/dstdir_tree/');
 like($r, qr/201 Created/, 'copy directory tree');
 is($t->read_file('dstdir_tree/file1'), 'FILE1', 'copy tree file');
 is($t->read_file('dstdir_tree/subdir/file2'), 'FILE2', 'copy tree subdir file');
+
+$r = http_copy('/srcdir_tree/', '/dstdir_depth0/', 'Depth: 0');
+like($r, qr/201 Created/, 'copy directory depth 0');
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.10');
+
+ok(!-e $t->testdir() . '/dstdir_depth0/file1',
+	'copy directory depth 0 no members');
+
+}
 
 mkdir($t->testdir() . '/ow_src');
 $t->write_file('ow_src/data', 'NEWDATA');
