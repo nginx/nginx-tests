@@ -150,8 +150,14 @@ sub socket {
 
 ###############################################################################
 
+sub fail {
+	my ($client, $reason) = @_;
+	print $client '500 failed: ' . $reason . CRLF;
+	$client->close();
+}
+
 sub smtp_test_daemon {
-	my ($port) = @_;
+	my ($port, $with_auth) = @_;
 	my $proxy_protocol;
 
 	my $server = IO::Socket::INET->new(
@@ -167,6 +173,7 @@ sub smtp_test_daemon {
 		print $client "220 fake esmtp server ready" . CRLF;
 
 		$proxy_protocol = '';
+		my $authenticated = 0;
 
 		while (<$client>) {
 			Test::Nginx::log_core('||', $_);
@@ -177,8 +184,15 @@ sub smtp_test_daemon {
 				print $client '250 hello ok' . CRLF;
 			} elsif (/^rset/i) {
 				print $client '250 rset ok' . CRLF;
+			} elsif (/^auth/i and not $with_auth) {
+				fail($client, "No authentication expected");
 			} elsif (/^auth plain/i) {
 				print $client '235 auth ok' . CRLF;
+				$authenticated = 1;
+			} elsif (/^mail/i and $with_auth and not $authenticated) {
+				fail($client, "Authentication expected");
+			} elsif (/^rcpt/i and $with_auth and not $authenticated) {
+				fail($client, "Authentication expected");
 			} elsif (/^mail from:[^@]+$/i) {
 				print $client '500 mail from error' . CRLF;
 			} elsif (/^mail from:/i) {
