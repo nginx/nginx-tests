@@ -11,6 +11,7 @@ use warnings;
 use strict;
 
 use Test::More;
+use MIME::Base64;
 
 BEGIN { use FindBin; chdir($FindBin::Bin); }
 
@@ -28,7 +29,7 @@ select STDOUT; $| = 1;
 local $SIG{PIPE} = 'IGNORE';
 
 my $t = Test::Nginx->new()->has(qw/mail mail_ssl imap pop3 smtp/)
-	->has_daemon('openssl')->plan(17);
+	->has_daemon('openssl')->plan(20);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -225,6 +226,30 @@ sub get_auth_caps {
 		push @meth, $1 if /(.*?)\x0d\x0a?/ms;
 	}
 	join ':', @meth;
+}
+
+# auth external with an initial response on servers where it is not enabled
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.9');
+
+$s = Test::Nginx::IMAP->new();
+$s->read();
+$s->send('1 AUTHENTICATE EXTERNAL ' . encode_base64('test@example.com', ''));
+$s->check(qr/^\S+ BAD invalid command/, 'imap auth external not enabled');
+
+$s = Test::Nginx::POP3->new();
+$s->read();
+$s->send('AUTH EXTERNAL ' . encode_base64('test@example.com', ''));
+$s->check(qr/^-ERR invalid command/, 'pop3 auth external not enabled');
+
+$s = Test::Nginx::SMTP->new();
+$s->read();
+$s->send('EHLO example.com');
+$s->read();
+$s->send('AUTH EXTERNAL ' . encode_base64('test@example.com', ''));
+$s->check(qr/^500 /, 'smtp auth external not enabled');
+
 }
 
 ###############################################################################
