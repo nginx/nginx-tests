@@ -21,7 +21,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(16);
+my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(19);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -106,6 +106,19 @@ unlike(http_get('/proxy?xar=/foo/.%2e'), qr/200 OK/,
 	'X-Accel-Redirect unsafe unescaped');
 like(http_get('/proxy?xar=/foo%20bar'), qr/uri: \/foo bar/,
 	'X-Accel-Redirect unescaped');
+
+# URIs which become empty after unescaping
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.9');
+
+unlike(http_get('/proxy?xar=%'), qr/200 OK/,
+	'X-Accel-Redirect unsafe empty');
+unlike(http_get('/proxy?xar=%4'), qr/200 OK/,
+	'X-Accel-Redirect unsafe empty incomplete');
+unlike(http_get('/proxy?xar=%?a=b'), qr/200 OK/,
+	'X-Accel-Redirect unsafe empty args');
+}
 
 like(http_get('/proxy?xar=@named'),
 	qr!200 OK.*named xar: \@named uri: /proxy!s, 'in named location');
