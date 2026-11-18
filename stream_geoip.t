@@ -65,7 +65,8 @@ stream {
                  city:$geoip_city
                  postal_code:$geoip_postal_code
 
-                 org:$geoip_org";
+                 org:$geoip_org
+                 asn:$geoip_asn";
     }
 }
 
@@ -144,7 +145,7 @@ $data .= chr(5);
 $data .= pack_node(32);
 
 $t->write_file('org.dat', $data);
-$t->try_run('no inet6 support')->plan(20);
+$t->try_run('no inet6 support')->plan(21);
 
 ###############################################################################
 
@@ -167,6 +168,7 @@ is($data{city}, 'Moscow', 'geoip city');
 is($data{postal_code}, 119034, 'geoip postal code');
 
 is($data{org}, 'Nginx', 'geoip org');
+is($data{asn}, '', 'geoip asn not supported');
 
 like(stream_pp('::ffff:10.0.0.1'), qr/org:Nginx/, 'geoip ipv6 ipv4-mapped');
 

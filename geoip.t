@@ -64,6 +64,7 @@ http {
             add_header X-Postal-Code       $geoip_postal_code;
 
             add_header X-Org               $geoip_org;
+            add_header X-Asn               $geoip_asn;
         }
     }
 }
@@ -144,7 +145,7 @@ $data .= pack_node(32);
 
 $t->write_file('org.dat', $data);
 $t->write_file('index.html', '');
-$t->try_run('no inet6 support')->plan(20);
+$t->try_run('no inet6 support')->plan(21);
 
 ###############################################################################
 
@@ -167,6 +168,7 @@ like($r, qr/X-City: Moscow/, 'geoip city');
 like($r, qr/X-Postal-Code: 119034/, 'geoip postal code');
 
 like($r, qr/X-Org: Nginx/, 'geoip org');
+unlike($r, qr/X-Asn:/, 'geoip asn not supported');
 
 like(http_xff('::ffff:10.0.0.1'), qr/X-Org: Nginx/, 'geoip ipv6 ipv4-mapped');
 
