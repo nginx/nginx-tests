@@ -116,7 +116,7 @@ port(8983, socket => 1)->close();
 
 $t->run_daemon(\&dns_daemon, port(8984), $t);
 
-$t->run()->plan(38);
+$t->run()->plan(39);
 
 $t->waitforfile($t->testdir . '/' . port(8981));
 $t->waitforfile($t->testdir . '/' . port(8982));
@@ -141,6 +141,14 @@ like(http_x_name_header('CASE.example.net', '/case'), qr/200 OK/,
 	'A case-insensitive');
 
 like(http_host_header('awide.example.net', '/'), qr/200 OK/, 'A uncompressed');
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.9');
+
+like(http_host_header('ad.example.net', '/'), qr/200 OK/, 'A with AD bit');
+
+}
+
 like(http_host_header('short.example.net', '/'), qr/502 Bad/,
 	'A short dns response');
 
@@ -359,6 +367,12 @@ sub reply_handler {
 	} elsif ($name eq 'fe-id.example.net' && $type == A) {
 		$id = 42;
 		$rcode = FORMERR;
+
+	} elsif ($name eq 'ad.example.net' && $type == A) {
+		# AD (Authenticated Data) bit set, see RFC 4035
+		$hdr = 0x81a0;
+
+		push @rdata, rd_addr($ttl, '127.0.0.1');
 
 	} elsif ($name eq 'case.example.net' && $type == A) {
 		if (++$state->{casecnt} > 1) {
