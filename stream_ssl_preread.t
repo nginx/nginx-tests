@@ -25,7 +25,7 @@ select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/stream stream_map stream_ssl_preread/)
 	->has(qw/stream_ssl stream_return socket_ssl_sni/)
-	->has_daemon('openssl')->plan(13)
+	->has_daemon('openssl')->plan(17)
 	->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
@@ -163,6 +163,16 @@ is(get_oldver(), 'foo', 'older version in ssl record');
 
 is(get_frag(), 'foof', 'handshake fragment split on SNI');
 
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.10');
+
+is(get_hello(sni => ['foo', 'bar']), "127.0.0.1:$p3", 'multiple SNI entries');
+is(get_hello(cs => ''), "127.0.0.1:$p3", 'empty cipher suites');
+is(get_hello(cs => "\x00\x2f\x00"), "127.0.0.1:$p3", 'odd cipher suites');
+is(get_hello(cm => ''), "127.0.0.1:$p3", 'empty compression methods');
+
+}
+
 $t->stop();
 
 is($t->read_file('status.log'), "400\n", 'preread buffer full - log');
@@ -181,23 +191,38 @@ sub get_frag {
 }
 
 sub get_short {
-	my $r = pack("N*", 0x16030100, 0x38010000, 0x330303eb);
+	my $r = pack("N*", 0x16030100, 0x3b010000, 0x360303eb);
 	$r .= pack("N*", 0x6357cdba, 0xa6b8d853, 0xf1f6ac0f);
 	$r .= pack("N*", 0xdf03178c, 0x0ae41824, 0xe7643682);
-	$r .= pack("N*", 0x3c1b273f, 0xbfde4b00, 0x00000000);
-	$r .= pack("CN3", 0x0c, 0x00000008, 0x00060000, 0x03666f6f);
+	$r .= pack("N*", 0x3c1b273f, 0xbfde4b00);
+	$r .= pack("n2C2n", 2, 0x002f, 1, 0, 12);
+	$r .= pack("N3", 0x00000008, 0x00060000, 0x03666f6f);
 
 	http($r);
 }
 
 sub get_oldver {
-	my $r = pack("N*", 0x16030000, 0x38010000, 0x340303eb);
+	my $r = pack("N*", 0x16030000, 0x3b010000, 0x370303eb);
 	$r .= pack("N*", 0x6357cdba, 0xa6b8d853, 0xf1f6ac0f);
 	$r .= pack("N*", 0xdf03178c, 0x0ae41824, 0xe7643682);
-	$r .= pack("N*", 0x3c1b273f, 0xbfde4b00, 0x00000000);
-	$r .= pack("CN3", 0x0c, 0x00000008, 0x00060000, 0x03666f6f);
+	$r .= pack("N*", 0x3c1b273f, 0xbfde4b00);
+	$r .= pack("n2C2n", 2, 0x002f, 1, 0, 12);
+	$r .= pack("N3", 0x00000008, 0x00060000, 0x03666f6f);
 
 	http($r);
+}
+
+sub get_hello {
+	my (%extra) = @_;
+	my $cs = exists $extra{cs} ? $extra{cs} : pack('n', 0x002f);
+	my $cm = exists $extra{cm} ? $extra{cm} : "\0";
+	my $sni = $extra{sni} || ['foo'];
+	my $list = join '', map { pack('C n/a*', 0, $_) } @$sni;
+	my $ext = pack('n n/a*', 0, pack('n/a*', $list));
+	my $ch = pack('n x32 x n/a* C/a* n/a*', 0x0303, $cs, $cm, $ext);
+	my $msg = pack('N', 0x01000000 + length($ch)) . $ch;
+
+	http(pack('C n n/a*', 0x16, 0x0301, $msg));
 }
 
 sub get_ssl {
