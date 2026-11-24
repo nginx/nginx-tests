@@ -72,7 +72,11 @@ http {
             if ($arg_path) {
                 set $sc_path "; Path=$arg_path";
             }
-            add_header Set-Cookie v=path=domain=$sc_domain$sc_path;
+            set $sc_name "v=path=domain=";
+            if ($arg_tab) {
+                set $sc_name "v\t=\tpath=domain=";
+            }
+            add_header Set-Cookie $sc_name$sc_domain$sc_path;
             return 200 OK;
         }
     }
@@ -80,7 +84,7 @@ http {
 
 EOF
 
-$t->run()->plan(9);
+$t->run()->plan(11);
 
 ###############################################################################
 
@@ -110,6 +114,13 @@ is(http_get_set_cookie('/?domain=www.example.org&path=/path/test.html'),
 is(http_get_set_cookie('/off/?domain=www.example.org&path=/path/test.html'),
 	'v=path=domain=; Domain=www.example.org; Path=/path/test.html',
 	'domain and path rewrite off');
+
+# the cookie-pair may be separated by whitespace other than SP
+
+is(http_get_set_cookie('/?tab=1&domain=www.example.org'),
+	'v=path=domain=; Domain=example.com', 'tab separated cookie pair');
+is(http_get_set_cookie('/?tab=1&path=/path/test.html'),
+	'v=path=domain=; Path=/new/test.html', 'tab separated cookie pair path');
 
 ###############################################################################
 
