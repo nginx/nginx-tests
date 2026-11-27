@@ -21,7 +21,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has('http')->plan(15)
+my $t = Test::Nginx->new()->has('http')->plan(19)
 	->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
@@ -87,6 +87,27 @@ like(http_get_im('/t', '"foo", "bar", ' . "\t" . $etag . ' , "baz"'),
 like(http_get_im('/t', '*'), qr/ 200 /, 'if-match all');
 like(http_get_im('/t', 'W/' . $etag), qr/ 412 /, 'if-match weak fail');
 
+# if-modified-since is ignored with if-none-match,
+# if-unmodified-since is ignored with if-match
+
+my ($old, $new) = ('Thu, 01 Jan 1970 00:00:01 GMT',
+	'Tue, 19 Jan 2038 03:14:07 GMT');
+
+TODO: {
+local $TODO = 'not yet';
+
+like(http_get_cond('/t', "If-None-Match: $etag", "If-Modified-Since: $old"),
+	qr/ 304 /, 'if-none-match with if-modified-since');
+like(http_get_cond('/t', "If-Match: $etag", "If-Unmodified-Since: $old"),
+	qr/ 200 /, 'if-match with if-unmodified-since');
+
+}
+
+like(http_get_cond('/t', 'If-None-Match: "foo"', "If-Modified-Since: $new"),
+	qr/ 200 /, 'if-none-match fail with if-modified-since');
+like(http_get_cond('/t', 'If-Match: "foo"', "If-Unmodified-Since: $new"),
+	qr/ 412 /, 'if-match fail with if-unmodified-since');
+
 # server MUST ignore precondition if its response wouldn't be 2xx or 412
 
 like(http_get_im('/nx', '"foo"'), qr/ 404 /, 'if-match ignored with 404');
@@ -119,6 +140,17 @@ sub http_get_im {
 GET $url HTTP/1.0
 Host: localhost
 If-Match: $inm
+
+EOF
+}
+
+sub http_get_cond {
+	my ($url, $cond, $date) = @_;
+	return http(<<EOF);
+GET $url HTTP/1.0
+Host: localhost
+$cond
+$date
 
 EOF
 }
