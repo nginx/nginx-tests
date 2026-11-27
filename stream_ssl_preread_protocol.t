@@ -23,7 +23,8 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/stream stream_ssl_preread stream_return/)
-	->write_file_expand('nginx.conf', <<'EOF')->plan(7)->run();
+	->has(qw/stream_limit_conn/)
+	->write_file_expand('nginx.conf', <<'EOF')->plan(8)->run();
 
 %%TEST_GLOBALS%%
 
@@ -35,9 +36,18 @@ events {
 stream {
     %%TEST_GLOBALS_STREAM%%
 
+    limit_conn_zone $ssl_preread_protocol zone=protocol:1m;
+
     server {
         listen       127.0.0.1:8080;
         ssl_preread  on;
+        return       $ssl_preread_protocol;
+    }
+
+    server {
+        listen       127.0.0.1:8081;
+        ssl_preread  on;
+        limit_conn   protocol 1;
         return       $ssl_preread_protocol;
     }
 }
@@ -56,10 +66,20 @@ is(get_tls13(), 'TLSv1.3', 'client hello supported_versions');
 is(get_ssl2('SSLv2'), 'SSLv2', 'client hello version 2');
 is(get_ssl2('TLSv1'), 'TLSv1', 'client hello version 2 - TLSv1');
 
+# the variable evaluated before the preread phase, as a limit_conn key,
+# must not keep the empty value
+
+TODO: {
+local $TODO = 'not yet' unless $t->has_version('1.31.10');
+
+is(get('TLSv1.2', 8081), 'TLSv1.2', 'protocol evaluated early');
+
+}
+
 ###############################################################################
 
 sub get {
-	my $v = shift;
+	my ($v, $port) = @_;
 	my ($re, $ch);
 
 	$re = 0x0300, $ch = 0x0300 if $v eq 'SSLv3';
@@ -73,7 +93,7 @@ sub get {
 	$r .= pack("N*", 0x3c1b273f, 0xbfde4b00, 0x00000000);
 	$r .= pack("CN3", 0x0c, 0x00000008, 0x00060000, 0x03666f6f);
 
-	http($r);
+	http($r, PeerAddr => '127.0.0.1:' . port($port || 8080));
 }
 
 sub get_tls13 {
