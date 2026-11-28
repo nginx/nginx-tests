@@ -21,7 +21,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http json rewrite proxy/)->plan(102)
+my $t = Test::Nginx->new()->has(qw/http json rewrite proxy/)->plan(106)
 	->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
@@ -105,6 +105,7 @@ http {
 
     json_set $jp_dup $arg_json dup;
     json_set $jp_dup_nested $arg_json obj.k;
+    json_set $jp_dup_array $arg_json arr[1].k;
 
     json_set $x $arg_json a;
     json_set $y $arg_json b;
@@ -226,7 +227,7 @@ http {
         }
 
         location /dup {
-            return 200 "dup=[$jp_dup] nested=[$jp_dup_nested]\n";
+            return 200 "dup=[$jp_dup] nested=[$jp_dup_nested] array=[$jp_dup_array]\n";
         }
 
         location /interfere {
@@ -487,6 +488,18 @@ like(http_get('/siblings?json={"arr":[10,20,30,40]}'),
 
 like(http_get('/dup?json={"dup":"first","dup":"second","obj":{"k":1,"k":2}}'),
 	qr/dup=\[second\] nested=\[2\]/, 'last match wins on duplicate keys');
+
+like(http_get('/dup?json={"obj":{"k":"first"},"obj":{}}'),
+	qr/nested=\[\]/, 'duplicate object clears previous nested value');
+
+like(http_get('/dup?json={"obj":{"k":"first"},"obj":{"other":2}}'),
+	qr/nested=\[\]/, 'duplicate object does not merge nested values');
+
+like(http_get('/dup?json={"obj":{"k":"first"},"obj":null}'),
+	qr/nested=\[\]/, 'duplicate scalar clears previous nested value');
+
+like(http_get('/dup?json={"arr":[0,{"k":"first"}],"arr":[1,{}]}'),
+	qr/array=\[\]/, 'duplicate array clears previous nested value');
 
 like(http_get('/interfere?json={"a":"A","b":"B"}'),
 	qr/x1=\[fixed\] y=\[B\] x2=\[fixed\]/,
