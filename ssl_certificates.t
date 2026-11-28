@@ -43,6 +43,8 @@ http {
     ssl_certificate rsa.crt;
     ssl_ciphers DEFAULT:ECCdraft;
 
+    add_header X-SSL-Protocol $ssl_protocol always;
+
     server {
         listen       127.0.0.1:8443 ssl;
         server_name  localhost;
@@ -87,10 +89,31 @@ $t->run()->plan(2);
 
 ###############################################################################
 
+TODO: {
+local $TODO = 'no TLSv1.3 sigalgs in Net::SSLeay (LibreSSL)'
+	if Net::SSLeay::constant("LIBRESSL_VERSION_NUMBER")
+	&& $t->has_module('LibreSSL')
+	&& test_tls13();
+
 like(cert('RSA'), qr/CN=rsa/, 'ssl cert RSA');
+
+}
+
+TODO: {
+local $TODO = 'no TLSv1.3 sigalgs in Net::SSLeay (LibreSSL)'
+	if Net::SSLeay::constant("LIBRESSL_VERSION_NUMBER")
+	&& !$t->has_module('LibreSSL')
+	&& test_tls13();
+
 like(cert('ECDSA'), qr/CN=ec/, 'ssl cert ECDSA');
 
+}
+
 ###############################################################################
+
+sub test_tls13 {
+	return http_get('/', SSL => 1) =~ /TLSv1.3/;
+}
 
 sub cert {
 	my $s = get_socket(@_) || return;

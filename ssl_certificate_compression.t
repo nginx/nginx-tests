@@ -25,6 +25,10 @@ select STDOUT; $| = 1;
 my $t = Test::Nginx->new()->has(qw/http http_ssl socket_ssl/)
 	->has_daemon('openssl');
 
+plan(skip_all => 'no certificate compression in LibreSSL')
+	if Net::SSLeay::constant('LIBRESSL_VERSION_NUMBER')
+	|| $t->has_module('LibreSSL');
+
 $t->write_file_expand('nginx.conf', <<'EOF');
 
 %%TEST_GLOBALS%%
