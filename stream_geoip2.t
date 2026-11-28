@@ -64,7 +64,8 @@ stream {
                  city:$geoip_city
                  postal_code:$geoip_postal_code
 
-                 org:$geoip_org";
+                 org:$geoip_org
+                 asn:$geoip_asn";
     }
 }
 
@@ -102,7 +103,8 @@ $t->write_file('city.mmdb', write_mmdb('GeoLite2-City-Test', [
 ]));
 
 $t->write_file('org.mmdb', write_mmdb('GeoLite2-ASN-Test', [
-	[ '81.2.69.160', { autonomous_system_organization => 'Nginx' } ],
+	[ '81.2.69.160', { autonomous_system_organization => 'Nginx',
+		autonomous_system_number => mmdb_uint32(15169) } ],
 	[ '1.128.0.0',
 		{ autonomous_system_organization => 'Telstra Pty Ltd' } ],
 	[ '1.128.0.1', { isp => 'Example ISP' } ],
@@ -117,9 +119,17 @@ $t->write_file('org.mmdb', write_mmdb('GeoLite2-ASN-Test', [
 	[ '1.128.0.6', { isp => 'Example ISP', domain => 'example.com' } ],
 	[ '1.128.0.7', { autonomous_system_organization => mmdb_uint32(42),
 		isp => 'Example ISP' } ],
+	[ '1.128.0.8', { autonomous_system_number => mmdb_uint16(64512) } ],
+	[ '1.128.0.9', { autonomous_system_organization => 'Telstra Pty Ltd',
+		autonomous_system_number => mmdb_uint32(4200000000) } ],
+	[ '1.128.0.10', { autonomous_system_number => 'AS15169' } ],
+	[ '1.128.0.11', { autonomous_system_number => mmdb_uint64(15169) } ],
+	[ '1.128.0.12', { autonomous_system_number => mmdb_uint32(0) } ],
+	[ '1.128.0.13', { isp => 'Example ISP',
+		autonomous_system_number => mmdb_uint32(64496) } ],
 ], 4));
 
-$t->try_run('mmdb not supported')->plan(42);
+$t->try_run('mmdb not supported')->plan(55);
 
 ###############################################################################
 
@@ -142,6 +152,7 @@ is($data{city}, 'London', 'geoip city');
 is($data{postal_code}, 'EC1A', 'geoip postal code');
 
 is($data{org}, 'Nginx', 'geoip org');
+is($data{asn}, 15169, 'geoip mmdb asn');
 
 like(stream_pp('::ffff:81.2.69.160'), qr/org:Nginx/, 'geoip ipv6 ipv4-mapped');
 
@@ -157,6 +168,7 @@ like(stream_pp('::ffff:1.128.0.0'), qr/org:Telstra Pty Ltd/,
 %data = stream_pp('10.0.0.1') =~ /(\w+):(.*)/g;
 is($data{country_code}, '', 'geoip mmdb private ip - no country code');
 is($data{city}, '', 'geoip mmdb private ip - no city');
+is($data{asn}, '', 'geoip mmdb private ip - no asn');
 
 %data = stream_pp('203.0.113.1') =~ /(\w+):(.*)/g;
 is($data{country_code}, 'ZZ', 'geoip mmdb unmapped country code');
@@ -195,6 +207,35 @@ like(stream_pp('1.128.0.6'), qr/org:Example ISP/,
 	'geoip mmdb org precedence isp over domain');
 like(stream_pp('1.128.0.7'), qr/org:Example ISP/,
 	'geoip mmdb org non-string field falls through');
+
+%data = stream_pp('::ffff:81.2.69.160') =~ /(\w+):(.*)/g;
+is($data{asn}, 15169, 'geoip mmdb asn ipv4-mapped');
+
+%data = stream_pp('1.128.0.0') =~ /(\w+):(.*)/g;
+is($data{asn}, '', 'geoip mmdb asn no field');
+
+%data = stream_pp('2001:db8::1') =~ /(\w+):(.*)/g;
+is($data{asn}, '', 'geoip mmdb asn ipv4-only db declines genuine ipv6');
+
+%data = stream_pp('1.128.0.8') =~ /(\w+):(.*)/g;
+is($data{asn}, 64512, 'geoip mmdb asn uint16 without org');
+is($data{org}, '', 'geoip mmdb asn without org');
+
+%data = stream_pp('1.128.0.9') =~ /(\w+):(.*)/g;
+is($data{asn}, 4200000000, 'geoip mmdb asn 32-bit');
+
+%data = stream_pp('1.128.0.12') =~ /(\w+):(.*)/g;
+is($data{asn}, '0', 'geoip mmdb asn zero');
+
+%data = stream_pp('1.128.0.10') =~ /(\w+):(.*)/g;
+is($data{asn}, '', 'geoip mmdb asn string type');
+
+%data = stream_pp('1.128.0.11') =~ /(\w+):(.*)/g;
+is($data{asn}, '', 'geoip mmdb asn unsupported integer type');
+
+%data = stream_pp('1.128.0.13') =~ /(\w+):(.*)/g;
+is($data{asn}, 64496, 'geoip mmdb asn with isp');
+is($data{org}, 'Example ISP', 'geoip mmdb asn isp org');
 
 ###############################################################################
 

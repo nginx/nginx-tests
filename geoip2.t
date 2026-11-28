@@ -65,6 +65,7 @@ http {
             add_header X-Postal-Code       $geoip_postal_code;
 
             add_header X-Org               $geoip_org;
+            add_header X-Asn               $geoip_asn;
         }
     }
 }
@@ -103,7 +104,8 @@ $t->write_file('city.mmdb', write_mmdb('GeoLite2-City-Test', [
 ]));
 
 $t->write_file('org.mmdb', write_mmdb('GeoLite2-ASN-Test', [
-	[ '81.2.69.160', { autonomous_system_organization => 'Nginx' } ],
+	[ '81.2.69.160', { autonomous_system_organization => 'Nginx',
+		autonomous_system_number => mmdb_uint32(15169) } ],
 	[ '1.128.0.0',
 		{ autonomous_system_organization => 'Telstra Pty Ltd' } ],
 	[ '1.128.0.1', { isp => 'Example ISP' } ],
@@ -118,10 +120,18 @@ $t->write_file('org.mmdb', write_mmdb('GeoLite2-ASN-Test', [
 	[ '1.128.0.6', { isp => 'Example ISP', domain => 'example.com' } ],
 	[ '1.128.0.7', { autonomous_system_organization => mmdb_uint32(42),
 		isp => 'Example ISP' } ],
+	[ '1.128.0.8', { autonomous_system_number => mmdb_uint16(64512) } ],
+	[ '1.128.0.9', { autonomous_system_organization => 'Telstra Pty Ltd',
+		autonomous_system_number => mmdb_uint32(4200000000) } ],
+	[ '1.128.0.10', { autonomous_system_number => 'AS15169' } ],
+	[ '1.128.0.11', { autonomous_system_number => mmdb_uint64(15169) } ],
+	[ '1.128.0.12', { autonomous_system_number => mmdb_uint32(0) } ],
+	[ '1.128.0.13', { isp => 'Example ISP',
+		autonomous_system_number => mmdb_uint32(64496) } ],
 ], 4));
 
 $t->write_file('index.html', '');
-$t->try_run('mmdb not supported')->plan(42);
+$t->try_run('mmdb not supported')->plan(55);
 
 ###############################################################################
 
@@ -161,6 +171,7 @@ like(http_xff('::ffff:1.128.0.0'), qr/X-Org: Telstra Pty Ltd/,
 $r = http_xff('10.0.0.1');
 unlike($r, qr/X-Country-Code:/, 'geoip mmdb private ip - no country code');
 unlike($r, qr/X-City:/, 'geoip mmdb private ip - no city');
+unlike($r, qr/X-Asn:/, 'geoip mmdb private ip - no asn');
 
 $r = http_xff('203.0.113.1');
 like($r, qr/X-Country-Code: ZZ/, 'geoip mmdb unmapped country code');
@@ -198,6 +209,31 @@ like(http_xff('1.128.0.6'), qr/X-Org: Example ISP/,
 	'geoip mmdb org precedence isp over domain');
 like(http_xff('1.128.0.7'), qr/X-Org: Example ISP/,
 	'geoip mmdb org non-string field falls through');
+
+$r = http_xff('81.2.69.160');
+like($r, qr/X-Asn: 15169\x0d/, 'geoip mmdb asn');
+like(http_xff('::ffff:81.2.69.160'), qr/X-Asn: 15169\x0d/,
+	'geoip mmdb asn ipv4-mapped');
+
+unlike(http_xff('1.128.0.0'), qr/X-Asn:/, 'geoip mmdb asn no field');
+unlike(http_xff('2001:db8::1'), qr/X-Asn:/,
+	'geoip mmdb asn ipv4-only db declines genuine ipv6');
+
+$r = http_xff('1.128.0.8');
+like($r, qr/X-Asn: 64512\x0d/, 'geoip mmdb asn uint16 without org');
+unlike($r, qr/X-Org:/, 'geoip mmdb asn without org');
+
+like(http_xff('1.128.0.9'), qr/X-Asn: 4200000000\x0d/,
+	'geoip mmdb asn 32-bit');
+like(http_xff('1.128.0.12'), qr/X-Asn: 0\x0d/, 'geoip mmdb asn zero');
+
+unlike(http_xff('1.128.0.10'), qr/X-Asn:/, 'geoip mmdb asn string type');
+unlike(http_xff('1.128.0.11'), qr/X-Asn:/,
+	'geoip mmdb asn unsupported integer type');
+
+$r = http_xff('1.128.0.13');
+like($r, qr/X-Asn: 64496\x0d/, 'geoip mmdb asn with isp');
+like($r, qr/X-Org: Example ISP/, 'geoip mmdb asn isp org');
 
 ###############################################################################
 
