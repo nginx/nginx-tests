@@ -22,7 +22,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy cache rewrite/)->plan(20);
+my $t = Test::Nginx->new()->has(qw/http proxy cache rewrite/)->plan(32);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -49,6 +49,13 @@ http {
             proxy_cache NAME;
 
             proxy_cache_background_update on;
+        }
+
+        location /ignore-accel/ {
+            proxy_pass  http://127.0.0.1:8081/;
+            proxy_cache NAME;
+
+            proxy_ignore_headers X-Accel-Expires;
         }
 
         location /ignore {
@@ -117,12 +124,14 @@ http {
 
         location /cache-control-no-cache-before-expires {
             add_header Cache-Control no-cache;
+            add_header X-Accel-Expires $arg_xae;
             add_header Expires "Thu, 31 Dec 2037 23:55:55 GMT";
             return 204;
         }
 
         location /cache-control-no-cache-after-expires {
             add_header Expires "Thu, 31 Dec 2037 23:55:55 GMT";
+            add_header X-Accel-Expires $arg_xae;
             add_header Cache-Control no-cache;
             return 204;
         }
@@ -167,14 +176,14 @@ http {
         }
 
         location /extension-before-x-accel-expires {
-            add_header Cache-Control stale-while-revalidate=2145902155;
+            add_header Cache-Control "stale-while-revalidate=2145902155$arg_cc";
             add_header X-Accel-Expires  @1;
             return 204;
         }
 
         location /extension-after-x-accel-expires {
             add_header X-Accel-Expires @1;
-            add_header Cache-Control stale-while-revalidate=2145902155;
+            add_header Cache-Control "stale-while-revalidate=2145902155$arg_cc";
             return 204;
         }
 
@@ -228,6 +237,18 @@ like(get('/cache-control-no-cache-before-expires'), qr/MISS/,
 like(get('/cache-control-no-cache-after-expires'), qr/MISS/,
 	'cache-control no-cache after expires');
 
+# Invalid or ignored X-Accel-Expires does not override Cache-Control
+
+like(get('/cache-control-no-cache-before-expires?xae=invalid'), qr/MISS/,
+	'cache-control before expires with invalid x-accel-expires');
+like(get('/cache-control-no-cache-after-expires?xae=invalid'), qr/MISS/,
+	'cache-control after expires with invalid x-accel-expires');
+
+like(get('/ignore-accel/cache-control-no-cache-before-expires?xae=60'),
+	qr/MISS/, 'cache-control before expires with ignored x-accel-expires');
+like(get('/ignore-accel/cache-control-no-cache-after-expires?xae=60'),
+	qr/MISS/, 'cache-control after expires with ignored x-accel-expires');
+
 # X-Accel-Expires is preferred over both Cache-Control and Expires
 
 like(get('/x-accel-expires-before'), qr/HIT/, 'x-accel-expires before');
@@ -249,6 +270,28 @@ like(get('/extension-before-x-accel-expires'),
 	qr/STALE/, 'cache-control extensions before x-accel-expires');
 like(get('/extension-after-x-accel-expires'),
 	qr/STALE/, 'cache-control extensions after x-accel-expires');
+
+# Cache-Control restrictions do not prevent parsing extensions
+
+like(get('/extension-before-x-accel-expires?cc=,private'),
+	qr/STALE/, 'cache-control private extensions before x-accel-expires');
+like(get('/extension-after-x-accel-expires?cc=,private'),
+	qr/STALE/, 'cache-control private extensions after x-accel-expires');
+
+like(get('/extension-before-x-accel-expires?cc=,max-age=0'),
+	qr/STALE/, 'cache-control max-age=0 extensions before x-accel-expires');
+like(get('/extension-after-x-accel-expires?cc=,max-age=0'),
+	qr/STALE/, 'cache-control max-age=0 extensions after x-accel-expires');
+
+like(get('/extension-before-x-accel-expires?cc=,max-age=invalid'),
+	qr/STALE/, 'cache-control invalid max-age before x-accel-expires');
+like(get('/extension-after-x-accel-expires?cc=,max-age=invalid'),
+	qr/STALE/, 'cache-control invalid max-age after x-accel-expires');
+
+like(get('/extension-before-x-accel-expires?cc=,s-maxage=invalid'),
+	qr/STALE/, 'cache-control invalid s-maxage before x-accel-expires');
+like(get('/extension-after-x-accel-expires?cc=,s-maxage=invalid'),
+	qr/STALE/, 'cache-control invalid s-maxage after x-accel-expires');
 
 # Set-Cookie is considered when caching with Cache-Control
 
