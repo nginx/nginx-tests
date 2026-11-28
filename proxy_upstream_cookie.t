@@ -21,7 +21,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(19);
+my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(23);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -81,7 +81,11 @@ is(http_get_uc('tc =   ; Domain=example.com;'), undef, 'space_semicolon_more');
 
 is(http_get_uc('tc=x'), 'x', 'onechar');
 is(http_get_uc('tc=,'), ',', 'comma');
-is(http_get_uc('tc	=	content     ;'), undef, 'tabbed');
+is(http_get_uc('tc	=	content     ;'), 'content     ', 'tabbed');
+is(http_get_uc('tc	=	content'), 'content', 'tabbed no trailing space');
+is(http_get_uc('tc	=content'), 'content', 'tab before equals');
+is(http_get_uc('tc=	content'), 'content', 'tab after equals');
+is(http_get_uc('tc=content     ;'), 'content     ', 'trailing space kept');
 is(http_get_uc('tc="content"'), '"content"', 'dquoted');
 is(http_get_uc('tc=content'), 'content', 'normal');
 is(http_get_uc('tc=con  tent; Domain=example.com'), 'con  tent',
